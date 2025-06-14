@@ -5,7 +5,6 @@
 #include "egos.h"
 #include "kmem.h"
 
-#define EGOSNULL (void*)0
 #define MAGIC (void*)0x91531CCA // lets the library know the freelist hasn't been set up yet
 
 /* in the data segment of the kernel */

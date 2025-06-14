@@ -28,6 +28,8 @@
  * memory region, and pushed back onto the free list.
  */
 
+ #define EGOSNULL (void*)0
+
 /* the metadata of a memory region */
 typedef struct memregion_info {
     uint size;
@@ -35,5 +37,5 @@ typedef struct memregion_info {
 } *memregion_info_t;
 
 void *egosalloc(uint size); // same as malloc
-void *egozalloc(uint size); // same as calloc
+void *egozalloc(uint size); // almost same as calloc
 void egosfree(void *ptr);
