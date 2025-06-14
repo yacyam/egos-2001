@@ -19,7 +19,6 @@ void grass_entry() {
     /* Initialize the grass interface. */
     grass->proc_free      = proc_free;
     grass->proc_alloc     = proc_alloc;
-    grass->proc_set_ready = proc_set_ready;
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
     /* Student's code goes here (System Call | Multicore & Locks). */
@@ -31,11 +30,13 @@ void grass_entry() {
     /* Load GPID_PROCESS. */
     INFO("Load kernel process #%d: sys_process", GPID_PROCESS);
     elf_load(GPID_PROCESS, sys_proc_read, 0, 0);
+
+    FATAL("grass_entry: partially done");
+    /*
     proc_set_running(proc_alloc());
     earth->mmu_switch(GPID_PROCESS);
     earth->mmu_flush_cache();
 
-    /* Jump to the first instruction of process GPID_PROCESS. */
     uint mstatus, M_MODE = 3, U_MODE = 0;
     uint GRASS_MODE = (earth->translation == SOFT_TLB) ? M_MODE : U_MODE;
     asm("csrr %0, mstatus" : "=r"(mstatus));
@@ -46,6 +47,7 @@ void grass_entry() {
     asm("mv a0, %0" ::"r"(APPS_ARG));
     asm("mv a1, %0" ::"r"(&boot_lock));
     asm("mret");
+    */
     /* If using page table translation, the CPU will enter the user mode after
      * this mret and thus page table translation will start to take effect. */
 }

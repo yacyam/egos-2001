@@ -14,7 +14,6 @@ struct syscall {
     int sender;             /* sender process ID    */
     int receiver;           /* receiver process ID  */
     char content[SYSCALL_MSG_LEN];
-    enum { PENDING, DONE } status;
 };
 
 void sys_send(int receiver, char* msg, uint size);

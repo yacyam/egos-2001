@@ -82,15 +82,19 @@ int main(int unused, struct multicore* boot) {
 static void app_read(uint off, char* dst) { file_read(app_ino, off, dst); }
 
 static int app_spawn(struct proc_request* req) {
+    FATAL("app_spawn: stop");
     int bin_ino = dir_lookup(0, "bin/");
     if ((app_ino = dir_lookup(bin_ino, req->argv[0])) < 0) return CMD_ERROR;
     int argc = req->argv[req->argc - 1][0] == '&' ? req->argc - 1 : req->argc;
 
+    FATAL("app_spawn: unimplemented");
+    /*
     app_pid = grass->proc_alloc();
     elf_load(app_pid, app_read, argc, (void**)req->argv);
     grass->proc_set_ready(app_pid);
 
     return CMD_OK;
+    */
 }
 
 static int sys_apps_base;
@@ -101,10 +105,13 @@ static void sys_proc_read(uint block_no, char* dst) {
 }
 
 static void sys_spawn(uint base) {
+    FATAL("sys_spawn: stop");
+    /*
     int pid = grass->proc_alloc();
     INFO("Load kernel process #%d: %s", pid, sys_apps[pid - 1]);
 
     sys_apps_base = base;
     elf_load(pid, sys_proc_read, 0, NULL);
     grass->proc_set_ready(pid);
+    */
 }
