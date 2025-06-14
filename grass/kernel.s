@@ -7,31 +7,9 @@
  * its program counter to the first instruction of trap_entry.
  */
     .section .text
-    .global trap_entry, kernel_lock
+    .global trap_entry, ctx_switch, kernel_lock
 
-trap_entry:
-    /* Step1: Acquire the kernel lock (only for multicore).
-     * Step2: Switch to the kernel stack.
-     * Step3: Save all the registers on the kernel stack.
-     * Step4: Call kernel_entry().
-     * Step5: Restore all the registers.
-     * Step6: Switch back to the process stack.
-     * Step7: Release the kernel lock (only for multicore).
-     * Step8: Invoke mret, returning to the process context. */
-
-    /* Step1 */
-    /* Student's code goes here (Multicore & Locks). */
-    /* Acquire the kernel lock and make sure not to modify any registers, */
-    /* so you may need to use sscratch just like how Step2 uses mscratch. */
-
-    /* Student's code ends here. */
-
-    /* Step2 */
-    csrw mscratch, sp
-    li sp, 0x80400000
-
-    /* Step3 */
-    addi sp, sp, -128 /* now, sp == SAVED_REGISTER_ADDR */
+.macro SAVE_REGS
     sw a0,  0(sp)
     sw a1,  4(sp)
     sw a2,  8(sp)
@@ -62,13 +40,9 @@ trap_entry:
     sw ra,  108(sp)
     sw gp,  112(sp)
     sw tp,  116(sp)
-    csrr t0, mscratch /* Step1 has written sp to mscratch */
-    sw t0,  120(sp)   /* t0 holds the value of the old sp before trap_entry */
+.endm
 
-    /* Step4 */
-    call kernel_entry
-
-    /* Step5 */
+.macro RESTORE_REGS
     lw a0,  0(sp)
     lw a1,  4(sp)
     lw a2,  8(sp)
@@ -99,18 +73,49 @@ trap_entry:
     lw ra,  108(sp)
     lw gp,  112(sp)
     lw tp,  116(sp)
+.endm
 
-    /* Step6 */
-    lw sp,  120(sp)
+/*
+    ctx_switch(void **old_sp, void **new_sp):
+        slightly different (so a process can context switch to itself)
+*/
+ctx_switch:
+    addi sp, sp, -128
+    SAVE_REGS
+    sw sp, 0(a0)
+    lw sp, 0(a1)
+    RESTORE_REGS
+    addi sp, sp, 128
+    ret
 
-    /* Step7 */
-    /* Student's code goes here (Multicore & Locks). */
-    /* Release the kernel lock and make sure not to modify any registers, */
-    /* so you may need to use sscratch just like how Step2 uses mscratch. */
+trap_entry:
+    csrrw sp, mscratch, sp /* SWAP kernel sp (of the process) and user sp */
 
-    /* Student's code ends here. */
+    addi sp, sp, -128 /* set up register trap frame on kernel stack of process */
+    SAVE_REGS
 
-    /* Step8 */
+    csrr t0,  mscratch /* Step1 has written sp to mscratch */
+    sw t0,  120(sp)   /* t0 holds the value of the old sp before trap_entry */
+
+    /* push mepc onto kernel stack of process */
+    csrr t0, mepc
+    sw t0, 124(sp)
+
+    /* invoke the C handler */
+    call kernel_entry
+
+    /* restore mepc */
+    lw t0,  124(sp)
+    csrw mepc, t0
+
+    RESTORE_REGS
+
+    /* flush kernel stack (should now be "empty"), and write kernel sp back into mscratch */
+    addi sp, sp, 128
+    csrw mscratch, sp
+
+    /* load back user stack pointer (pushed onto kernel stack) */
+    lw sp, -8(sp)
     mret
 
 .bss

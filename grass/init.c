@@ -11,8 +11,6 @@
 #include "queue.h"
 #include "list.h"
 
-extern list_t proc_set;
-
 /*
 #include <stdlib.h>
 void memwrite(void *p, char c, int size) {
@@ -55,6 +53,10 @@ void malloc_stresstest() {
 }
 */
 
+extern list_t proc_set;
+extern queue_t runQ, readyQ;
+extern struct process *proc_curr;
+
 static void sys_proc_read(uint block_no, char* dst) {
     earth->disk_read(SYS_PROC_EXEC_START + block_no, 1, dst);
 }
@@ -80,8 +82,12 @@ void grass_entry() {
     /* create kernel data structures */
     if ((proc_set = list_new()) == EGOSNULL)
         FATAL("grass_entry: failed to create proc_set");
+    if ((runQ = queue_new()) == EGOSNULL)
+        FATAL("grass_entry: failed to create runQ");
+    if ((readyQ = queue_new()) == EGOSNULL)
+        FATAL("grass_entry: failed to create readyQ");
 
-    struct process *proc_process = proc_alloc();
+    proc_curr = proc_alloc();
     earth->mmu_switch(GPID_PROCESS);
     earth->mmu_flush_cache();
 
@@ -92,7 +98,7 @@ void grass_entry() {
     asm("csrw mstatus, %0" ::"r"(mstatus));
 
     asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
-    asm("csrw mscratch, %0"::"r"(proc_process->ksp)); // for kernel stack switch on trap entry
+    asm("csrw mscratch, %0"::"r"(proc_curr->ksp)); // for kernel stack switch on trap entry
     asm("mv a0, %0" ::"r"(APPS_ARG));
     asm("mv a1, %0" ::"r"(&boot_lock));
     asm("mret");

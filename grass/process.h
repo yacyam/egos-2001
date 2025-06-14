@@ -10,7 +10,6 @@ struct process {
     int pid;
     struct syscall syscall;
     void *kstack, *ksp;
-    uint mepc;
 };
 
 ulonglong mtime_get();

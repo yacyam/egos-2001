@@ -23,7 +23,7 @@ struct process *proc_alloc() {
     proc->pid    = ++curr_pid;
     proc->kstack = egosalloc(SIZE_KSTACK);
     proc->ksp    = (void*)((uint)proc->kstack + SIZE_KSTACK);
-    
+
     if (proc->kstack == EGOSNULL)
         FATAL("proc_alloc: failed to alloc kstack");
     if (list_append(proc_set, proc) < 0)
