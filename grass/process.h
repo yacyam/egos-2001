@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kmem.h"
+#include "queue.h"
 #include "egos.h"
 #include "syscall.h"
 

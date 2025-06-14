@@ -8,7 +8,7 @@
 
 #include "process.h"
 #include "elf.h"
-#include "kmem.h"
+#include "list.h"
 
 /*
 #include <stdlib.h>

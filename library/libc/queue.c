@@ -90,7 +90,7 @@ queue_t queue_new() {
     return queue;
 }
 
-int queue_enqueue(queue_t queue, void* item) {
+int queue_push(queue_t queue, void* item) {
     queue_invariants(queue);
 
     node_t dummy_tail     = queue->tail;
@@ -137,7 +137,7 @@ int queue_insert(queue_t queue, void* item) {
     return 0;
 }
 
-int queue_dequeue(queue_t queue, void** pitem) {
+int queue_pop(queue_t queue, void** pitem) {
     queue_invariants(queue);
     if (queue->size == 0) return -1;
 

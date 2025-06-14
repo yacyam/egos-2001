@@ -19,11 +19,11 @@ typedef struct queue *queue_t;
 queue_t queue_new();
 
 /*
- * Enqueue an item.
+ * Push an item (to end of queue).
  * Return 0 (success) or -1 (failure).  (A reason for failure may be
  * that there is not enough memory left.)
  */
-int queue_enqueue(queue_t queue, void* item);
+int queue_push(queue_t queue, void* item);
 
 /*
  * Prepend an item to the beginning of the queue.  This should be returned
@@ -39,7 +39,7 @@ int queue_insert(queue_t queue, void* item);
  * Return 0 (success) if queue is nonempty, or -1 (failure)
  * if queue is empty.
  */
-int queue_dequeue(queue_t queue, void** pitem);
+int queue_pop(queue_t queue, void** pitem);
 
 /*
  * Call f(item, context) for each item in queue.
