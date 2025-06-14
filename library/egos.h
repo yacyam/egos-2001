@@ -42,6 +42,8 @@ extern struct earth* earth;
 extern struct grass* grass;
 
 /* Below is the physical memory layout in egos-2000. */
+#define HEAP_END          0x82000000
+#define HEAP_START        0x81000000 /* 240MB HEAP */
 #define RAM_END           0x81000000 /* 16MB memory [0x80000000,0x81000000) */
 #define APPS_PAGES_BASE   0x80800000 /* 8MB free for mmu_alloc              */
 #define APPS_STACK_TOP    0x80800000 /* 2MB app stack (growing down)        */
@@ -49,7 +51,7 @@ extern struct grass* grass;
 #define SYSCALL_ARG       0x80601000 /* struct syscall                      */
 #define APPS_ARG          0x80600000 /* main() arguments (argc and argv)    */
 #define APPS_ENTRY        0x80400000 /* 2MB app code and data               */
-#define EGOS_STACK_TOP    0x80400000 /* 2MB egos stack (growing down)       */
+#define BOOT_STACK_TOP    0x80400000 /* 2MB boot stack (growing down)       */
 #define GRASS_STRUCT_BASE 0x80201000 /* struct grass                        */
 #define EARTH_STRUCT_BASE 0x80200000 /* struct earth                        */
 #define RAM_START         0x80000000 /* 2MB egos code and data              */

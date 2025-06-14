@@ -8,6 +8,49 @@
 
 #include "process.h"
 #include "elf.h"
+#include "kmem.h"
+
+/*
+#include <stdlib.h>
+void memwrite(void *p, char c, int size) {
+    char *ptr = p;
+    for (int i = 0; i < size; i++) ptr[i] = c;
+}
+
+void memread(void *p, char c, int size) {
+    char *ptr = p;
+    for (int i = 0; i < size; i++)
+        if (ptr[i] != c)
+            FATAL("memread: fail!");
+}
+
+// if this works, probably right
+void malloc_stresstest() {
+    #define NUM_REGIONS 128
+    #define REGION_MAXSZ 0x1000
+    #define NUM_ITERATIONS 200
+    void *arr[NUM_REGIONS];
+    uint sizes[NUM_REGIONS];
+    char chars[NUM_REGIONS];
+
+
+    for (int _ = 0; _ < NUM_ITERATIONS; _++) {
+        for (int i = 0; i < NUM_REGIONS; i++) {
+            chars[i] = rand() % sizeof(char);
+            sizes[i] = rand() % REGION_MAXSZ;
+            arr[i] = egozalloc(sizes[i]);
+        }
+    
+        for (int i = 0; i < NUM_REGIONS; i++)
+            memwrite(arr[i], chars[i], sizes[i]);
+        for (int i = 0; i < NUM_REGIONS; i++)
+            memread(arr[i], chars[i], sizes[i]);
+
+        for (int i = 0; i < NUM_REGIONS; i++)
+            egosfree(arr[i]);
+    }
+}
+*/
 
 static void sys_proc_read(uint block_no, char* dst) {
     earth->disk_read(SYS_PROC_EXEC_START + block_no, 1, dst);
