@@ -67,6 +67,7 @@ void grass_entry() {
     /* Initialize the grass interface. */
     grass->proc_free      = proc_free;
     grass->proc_alloc     = proc_alloc;
+    grass->proc_set_ready = proc_set_ready;
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
     /* Student's code goes here (System Call | Multicore & Locks). */

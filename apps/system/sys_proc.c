@@ -9,6 +9,7 @@
 #include "app.h"
 #include "elf.h"
 #include "disk.h"
+#include "process.h"
 #include <string.h>
 
 static int app_ino, app_pid;
@@ -22,8 +23,6 @@ struct multicore {
 int main(int unused, struct multicore* boot) {
     SUCCESS("Enter kernel process GPID_PROCESS");
 
-    while (1);
-
     /* Student's code goes here (Multicore & Locks). */
 
     /* Release the boot lock, so the other 3 cores can start
@@ -35,6 +34,9 @@ int main(int unused, struct multicore* boot) {
     char buf[SYSCALL_MSG_LEN];
 
     sys_spawn(SYS_TERM_EXEC_START);
+    while (1) {
+        SUCCESS("Process!!!");
+    }
     grass->sys_recv(GPID_TERMINAL, NULL, buf, SYSCALL_MSG_LEN);
     INFO("sys_process receives: %s", buf);
 
@@ -107,13 +109,10 @@ static void sys_proc_read(uint block_no, char* dst) {
 }
 
 static void sys_spawn(uint base) {
-    FATAL("sys_spawn: stop");
-    /*
-    int pid = grass->proc_alloc();
-    INFO("Load kernel process #%d: %s", pid, sys_apps[pid - 1]);
+    struct process *proc_sys = grass->proc_alloc();
+    INFO("Load kernel process #%d: %s", proc_sys->pid, sys_apps[proc_sys->pid - 1]);
 
     sys_apps_base = base;
-    elf_load(pid, sys_proc_read, 0, NULL);
-    grass->proc_set_ready(pid);
-    */
+    elf_load(proc_sys->pid, sys_proc_read, 0, NULL);
+    grass->proc_set_ready(proc_sys);
 }

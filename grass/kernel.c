@@ -8,6 +8,7 @@
  */
 
 void ctx_switch(void **old_sp, void **new_sp);
+void ctx_start(void **old_sp, void *new_sp);
 
 #include "process.h"
 #include "queue.h"
@@ -23,6 +24,35 @@ queue_t runQ; // can be scheduled
 queue_t readyQ; // can be scheduled (for the first time)
 
 struct process *proc_curr, *proc_next;
+
+/**
+ * proc_switch_aftermath: sets up kernel state after a process is switched to.
+ * Requires that `proc_curr` is the process that was switched from, and
+ * `proc_next` is the process that was switched to.
+ */
+void proc_switch_aftermath() {
+    proc_curr = proc_next;
+    earth->mmu_switch(proc_curr->pid);
+    earth->mmu_flush_cache();
+    earth->timer_reset(core_in_kernel);
+}
+
+/**
+ * ctx_entry: simulate an interrupt, and return from interrupt to newly
+ * scheduled process. This function is called on the kernel stack of the newly
+ * created process (although the SP could also in essence be the boot/trap stack)
+ */
+void ctx_entry() {
+    proc_switch_aftermath();
+
+    // simulate an interrupt (could clear out other regs but i am lazy).
+    // app.s sets the stack pointer
+    asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
+    asm("csrw mscratch, %0"::"r"(proc_curr->ksp));
+    asm("mv a0, %0" ::"r"(APPS_ARG));     // address of argc
+    asm("mv a1, %0" ::"r"(APPS_ARG + 4)); // argv
+    asm("mret");
+}
 
 static void intr_entry(uint);
 static void excp_entry(uint);
@@ -58,7 +88,11 @@ static void proc_yield(queue_t queue) {
 
     // schedule another process (newest first)
     if (queue_length(readyQ) > 0) {
-        FATAL("proc_yield: about to schedule a new process!");
+        if (queue_pop(readyQ, (void**)&proc_next) < 0)
+            FATAL("proc_yield: failed to pop readyQ");
+        
+        ctx_start(&proc_curr->ksp, proc_next->ksp);
+        proc_switch_aftermath();
     }
     else if (queue_length(runQ) > 0) {
         if (queue_pop(runQ, (void**)&proc_next) < 0)
@@ -66,11 +100,7 @@ static void proc_yield(queue_t queue) {
         
         // both are pointers on purpose
         ctx_switch(&proc_curr->ksp, &proc_next->ksp);
-        proc_curr = proc_next;
-
-        earth->mmu_switch(proc_next->pid);
-        earth->mmu_flush_cache();
-        earth->timer_reset(core_in_kernel);
+        proc_switch_aftermath();
     }
     else {
         FATAL("proc_yield: no more processes to schedule");

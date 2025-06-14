@@ -8,6 +8,12 @@
 #include "process.h"
 #include "list.h"
 extern list_t proc_set;
+extern queue_t readyQ;
+
+void proc_set_ready(struct process *proc) { 
+    if (queue_push(readyQ, proc) < 0)
+        FATAL("proc_set_ready: failed to push proc %d onto readyQ", proc->pid);
+}
 
 /**
  * proc_alloc: alloc PCB and kernel stack of process, and push onto proc_list.

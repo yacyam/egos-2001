@@ -15,4 +15,5 @@ struct process {
 ulonglong mtime_get();
 
 struct process *proc_alloc();
+void proc_set_ready(struct process *);
 void proc_free(int);

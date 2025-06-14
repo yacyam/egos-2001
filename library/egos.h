@@ -27,7 +27,9 @@ struct earth {
 
 struct grass {
     struct process *(*proc_alloc)();
+    void (*proc_set_ready)(struct process *proc);
     void (*proc_free)(int pid);
+
 
     void (*sys_send)(int receiver, char* msg, uint size);
     void (*sys_recv)(int from, int* sender, char* buf, uint size);

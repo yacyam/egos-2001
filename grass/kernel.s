@@ -7,7 +7,7 @@
  * its program counter to the first instruction of trap_entry.
  */
     .section .text
-    .global trap_entry, ctx_switch, kernel_lock
+    .global trap_entry, ctx_switch, ctx_start, ctx_entry, kernel_lock
 
 .macro SAVE_REGS
     sw a0,  0(sp)
@@ -87,6 +87,16 @@ ctx_switch:
     RESTORE_REGS
     addi sp, sp, 128
     ret
+
+/*
+    ctx_start(void **old_sp, void *new_sp):
+*/
+ctx_start:
+    addi sp, sp, -128
+    SAVE_REGS
+    sw sp, 0(a0)
+    mv sp, a1
+    call ctx_entry
 
 trap_entry:
     csrrw sp, mscratch, sp /* SWAP kernel sp (of the process) and user sp */
