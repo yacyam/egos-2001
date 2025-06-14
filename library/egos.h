@@ -43,7 +43,7 @@ extern struct grass* grass;
 
 /* Below is the physical memory layout in egos-2000. */
 #define HEAP_END          0x82000000
-#define HEAP_START        0x81000000 /* 240MB HEAP */
+#define HEAP_START        0x81000000 /* 16MB HEAP */
 #define RAM_END           0x81000000 /* 16MB memory [0x80000000,0x81000000) */
 #define APPS_PAGES_BASE   0x80800000 /* 8MB free for mmu_alloc              */
 #define APPS_STACK_TOP    0x80800000 /* 2MB app stack (growing down)        */
