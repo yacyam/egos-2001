@@ -22,6 +22,8 @@ struct multicore {
 int main(int unused, struct multicore* boot) {
     SUCCESS("Enter kernel process GPID_PROCESS");
 
+    while (1);
+
     /* Student's code goes here (Multicore & Locks). */
 
     /* Release the boot lock, so the other 3 cores can start

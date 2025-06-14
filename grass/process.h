@@ -2,20 +2,18 @@
 
 #include "kmem.h"
 #include "queue.h"
-#include "egos.h"
 #include "syscall.h"
+
+#define SIZE_KSTACK 0x4000 // default kernel stack size (16KB)
 
 struct process {
     int pid;
     struct syscall syscall;
-    /* Student's code goes here (Preemptive Scheduler | System Call). */
-
-    /* Add new fields for lifecycle statistics, MLFQ or process sleep. */
-
-    /* Student's code ends here. */
+    void *kstack, *ksp;
+    uint mepc;
 };
 
 ulonglong mtime_get();
 
-int proc_alloc();
+struct process *proc_alloc();
 void proc_free(int);

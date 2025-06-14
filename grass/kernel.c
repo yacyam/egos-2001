@@ -8,7 +8,12 @@
  */
 
 #include "process.h"
+#include "queue.h"
+#include "list.h"
 #include <string.h>
+
+// holds the set of all alive processes
+list_t proc_set;
 
 static void intr_entry(uint);
 static void excp_entry(uint);

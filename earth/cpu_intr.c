@@ -29,14 +29,14 @@ static void mtimecmp_set(ulonglong time, uint core_id) {
 }
 
 static void timer_reset(uint core_id) {
-    mtimecmp_set(mtime_get() + QUANTUM, core_id);
+    mtimecmp_set(mtime_get() + 10*QUANTUM, core_id);
 }
 
 void trap_entry(); /* See grass/kernel.s */
 void intr_init(uint core_id) {
     /* Initialize the timer. */
     earth->timer_reset = timer_reset;
-    mtimecmp_set(0x0FFFFFFFFFFFFFFFUL, core_id);
+    timer_reset(core_id);
 
     /* Setup the interrupt/exception handling entry. */
     asm("csrw mtvec, %0" ::"r"(trap_entry));

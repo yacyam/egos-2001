@@ -6,9 +6,29 @@
  */
 
 #include "process.h"
+#include "list.h"
+extern list_t proc_set;
 
-int proc_alloc() {
-    FATAL("proc_alloc: unimplemented");
+/**
+ * proc_alloc: alloc PCB and kernel stack of process, and push onto proc_list.
+ * Returns NULL if OOM.
+ */
+struct process *proc_alloc() {
+    static uint curr_pid = 0;
+
+    struct process *proc = egozalloc(sizeof(struct process));
+    if (proc == EGOSNULL)
+        FATAL("proc_alloc: failed to alloc PCB");
+
+    proc->pid    = ++curr_pid;
+    proc->kstack = egosalloc(SIZE_KSTACK);
+    proc->ksp    = (void*)((uint)proc->kstack + SIZE_KSTACK);
+    
+    if (proc->kstack == EGOSNULL)
+        FATAL("proc_alloc: failed to alloc kstack");
+    if (list_append(proc_set, proc) < 0)
+        FATAL("proc_alloc: failed to push new proc onto proc_set");
+    return proc;
 }
 
 void proc_free(int pid) {
