@@ -107,19 +107,10 @@ trap_entry:
     csrr t0,  mscratch /* Step1 has written sp to mscratch */
     sw t0,  120(sp)   /* t0 holds the value of the old sp before trap_entry */
 
-    /* push mepc onto kernel stack of process */
-    csrr t0, mepc
-    sw t0, 124(sp)
-
     /* invoke the C handler */
     call kernel_entry
 
-    /* restore mepc */
-    lw t0,  124(sp)
-    csrw mepc, t0
-
     RESTORE_REGS
-
     /* flush kernel stack (should now be "empty"), and write kernel sp back into mscratch */
     addi sp, sp, 128
     csrw mscratch, sp

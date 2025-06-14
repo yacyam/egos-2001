@@ -34,9 +34,6 @@ int main(int unused, struct multicore* boot) {
     char buf[SYSCALL_MSG_LEN];
 
     sys_spawn(SYS_TERM_EXEC_START);
-    while (1) {
-        SUCCESS("Process!!!");
-    }
     grass->sys_recv(GPID_TERMINAL, NULL, buf, SYSCALL_MSG_LEN);
     INFO("sys_process receives: %s", buf);
 

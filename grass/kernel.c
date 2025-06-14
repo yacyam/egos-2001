@@ -59,26 +59,37 @@ static void excp_entry(uint);
 
 void kernel_entry() {
     asm("csrr %0, mhartid":"=r"(core_in_kernel));
+    asm("csrr %0, mepc":"=r"(proc_curr->mepc));
 
     uint mcause;
     asm("csrr %0, mcause" : "=r"(mcause));
     (mcause & (1 << 31)) ? intr_entry(mcause & 0x3FF) : excp_entry(mcause);
+
+    asm("csrw mepc, %0"::"r"(proc_curr->mepc));
 }
 
 #define INTR_ID_TIMER   7
 #define EXCP_ID_ECALL_U 8
 #define EXCP_ID_ECALL_M 11
 static void proc_yield(queue_t queue);
-static void proc_try_syscall(struct process* proc);
+static void proc_try_syscall();
 
 static void excp_entry(uint id) {
-    FATAL("excp_entry: unimplemented");
+    if (id == EXCP_ID_ECALL_M) {
+        proc_curr->mepc += 4;
+        memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(SYSCALL_MSG_LEN));
+        proc_try_syscall();
+        proc_yield(runQ);
+        return;
+    }
+
+    FATAL("excp_entry: proc %d got unknown id %d", proc_curr->pid, id);
 }
 
 static void intr_entry(uint id) {
     if (id == INTR_ID_TIMER) { proc_yield(runQ); return; }
     
-    FATAL("intr_entry: id %d", id);
+    FATAL("intr_entry: proc %d got unknown id %d", proc_curr->pid, id);
 }
 
 static void proc_yield(queue_t queue) {
@@ -107,14 +118,24 @@ static void proc_yield(queue_t queue) {
     }
 }
 
-static void proc_try_send(struct process* sender) {
+static void proc_try_send() {
     FATAL("proc_try_send: unimplemented");
 }
 
-static void proc_try_recv(struct process* receiver) {
+static void proc_try_recv() {
     FATAL("proc_try_recv: unimplemented");
 }
 
-static void proc_try_syscall(struct process* proc) {
-    FATAL("proc_try_syscall: unimplemented");
+static void proc_try_syscall() {
+    switch (proc_curr->syscall.type) {
+        case SYS_SEND:
+            proc_try_send();
+            break;
+        case SYS_RECV:
+            proc_try_recv();
+            break;
+        default:
+            FATAL("proc_try_syscall: proc %d attempt unknown syscall type %d", \
+                    proc_curr->pid, proc_curr->syscall.type);
+    }
 }

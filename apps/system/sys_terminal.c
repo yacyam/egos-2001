@@ -12,10 +12,6 @@
 int main() {
     SUCCESS("Enter kernel process GPID_TERMINAL");
 
-    while (1) {
-        SUCCESS("Terminal!!");
-    }
-
     char buf[SYSCALL_MSG_LEN];
     strcpy(buf, "Finish GPID_TERMINAL initialization");
     grass->sys_send(GPID_PROCESS, buf, 36);

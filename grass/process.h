@@ -8,6 +8,7 @@
 
 struct process {
     int pid;
+    uint mepc;
     struct syscall syscall;
     void *kstack, *ksp;
 };
