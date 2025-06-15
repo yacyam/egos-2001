@@ -61,6 +61,8 @@ struct process *proc_alloc() {
 
     if ((proc->senderQ = queue_new()) < 0)
         FATAL("proc_alloc: failed to alloc senderQ");
+    if ((proc->msgwaitQ = queue_new()) < 0)
+        FATAL("proc_alloc: failed to alloc msgwaitQ");
 
     if (proc->kstack == EGOSNULL)
         FATAL("proc_alloc: failed to alloc kstack");
@@ -94,6 +96,9 @@ void proc_free(int pid) {
     // free app memory, kernel stack, senderQ, and PCB
     earth->mmu_free(pid);
     egosfree(proc_being_killed->kstack);
-    queue_free(proc_being_killed->senderQ);
+    if (queue_free(proc_being_killed->senderQ) < 0)
+        FATAL("proc_free: failed to free proc %d senderQ", pid);
+    if (queue_free(proc_being_killed->msgwaitQ) < 0)
+        FATAL("proc_free: failed to free proc %d msgwaitQ", pid);
     egosfree(proc_being_killed);
 }

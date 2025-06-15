@@ -11,7 +11,8 @@ struct process {
     int pid;
     uint mepc;
     struct syscall syscall;
-    list_t senderQ; // queue of processes that want to send a message to this process
+    queue_t senderQ;  // queue of processes that want to send a message to this process
+    queue_t msgwaitQ; // temporary place that a receiver can wait in until they get msg (INVARIANT: always at most one process on msgwaitQ)
     void *kstack, *ksp;
 };
 

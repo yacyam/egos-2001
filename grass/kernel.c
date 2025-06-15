@@ -118,15 +118,34 @@ static void proc_yield(queue_t queue) {
     }
 }
 
+/* * * * * * * */
+// basically condition variables (self explanatory)
+
+static void msg_wait() { proc_yield(proc_curr->msgwaitQ); }
+static void msg_notify(struct process *recipient) {
+    if (queue_length(recipient->msgwaitQ) == 0) return;
+    if (queue_length(recipient->msgwaitQ) > 1)
+        FATAL("notify: more than one process on proc %d's msgwaitQ", recipient->pid);
+    
+    if (queue_pop(recipient->msgwaitQ, EGOSNULL) < 0)
+        FATAL("notify: failed to pop off of proc %d's msgwaitQ", recipient->pid);
+
+    if (queue_push(runQ, recipient) < 0)
+        FATAL("notify: failed to push recipient %d onto runQ", recipient->pid);
+}
+
+/* * * * * * * */
+
 static void proc_try_send() {
     struct process *receiver = proc_pcb_find(proc_set, proc_curr->syscall.receiver);
+    msg_notify(receiver);
     proc_yield(receiver->senderQ);
 }
 
 static void proc_try_recv() {
     // wait until someone wants to send a message to us (the receiver)
     while (!queue_length(proc_curr->senderQ))
-        proc_yield(runQ);
+        msg_wait();
 
     // attempt to find the desired sender from our senderQ
     struct process *sender;
@@ -140,7 +159,7 @@ static void proc_try_recv() {
     else {
         // wait until desired sender is on our senderQ, then delete
         while ((sender = proc_pcb_find(proc_curr->senderQ, sender_pid)) == EGOSNULL)
-            proc_yield(runQ);
+            msg_wait();
         
         if (queue_delete(proc_curr->senderQ, sender) < 0)
             FATAL("proc_try_recv: failed to delete proc %d off of proc %d's senderQ", sender->pid, proc_curr->pid);
