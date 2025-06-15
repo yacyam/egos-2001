@@ -89,6 +89,9 @@ void grass_entry() {
         FATAL("grass_entry: failed to create readyQ");
 
     proc_curr = proc_alloc();
+
+    if (proc_curr->pid != GPID_PROCESS)
+        FATAL("grass_entry: first alloc'd process has pid %d instead of 1", proc_curr->pid);
     earth->mmu_switch(GPID_PROCESS);
     earth->mmu_flush_cache();
 

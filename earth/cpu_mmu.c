@@ -103,7 +103,7 @@ void pagetable_identity_map(int pid) {
     memset(root, 0, PAGE_SIZE);
 
     /* Setup the identity map for various memory regions. */
-    for (uint i = RAM_START; i < RAM_END; i += PAGE_SIZE * 1024)
+    for (uint i = RAM_START; i < HEAP_END; i += PAGE_SIZE * 1024)
         setup_identity_region(pid, i, 1024, USER_RWX);    /* RAM   */
     setup_identity_region(pid, CLINT_BASE, 16, USER_RWX); /* CLINT */
     setup_identity_region(pid, UART_BASE, 1, USER_RWX);   /* UART  */

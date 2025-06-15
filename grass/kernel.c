@@ -75,7 +75,7 @@ static void proc_yield(queue_t queue);
 static void proc_try_syscall();
 
 static void excp_entry(uint id) {
-    if (id == EXCP_ID_ECALL_M) {
+    if (id == EXCP_ID_ECALL_U || id == EXCP_ID_ECALL_M) {
         proc_curr->mepc += 4;
         memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(struct syscall));
         proc_try_syscall();
@@ -83,7 +83,7 @@ static void excp_entry(uint id) {
         return;
     }
 
-    FATAL("excp_entry: proc %d got unknown id %d", proc_curr->pid, id);
+    FATAL("excp_entry: proc %d got unknown id %d, mepc %x", proc_curr->pid, id, proc_curr->mepc);
 }
 
 static void intr_entry(uint id) {
@@ -94,20 +94,16 @@ static void intr_entry(uint id) {
 
 static void proc_yield(queue_t queue) {
     // push current process onto `queue` (can be runQ, or another queue)
-    if (queue_push(queue, proc_curr) < 0)
-        FATAL("proc_yield: failed to push current proc %d onto runQ", proc_curr->pid);
+    queue_push(queue, proc_curr);
 
     // schedule another process (newest first)
     if (queue_length(readyQ) > 0) {
-        if (queue_pop(readyQ, (void**)&proc_next) < 0)
-            FATAL("proc_yield: failed to pop readyQ");
-        
+        queue_pop(readyQ, (void**)&proc_next);
         ctx_start(&proc_curr->ksp, proc_next->ksp);
         proc_switch_aftermath();
-    }
+    } 
     else if (queue_length(runQ) > 0) {
-        if (queue_pop(runQ, (void**)&proc_next) < 0)
-            FATAL("proc_yield: failed to pop runQ");
+        queue_pop(runQ, (void**)&proc_next);
         
         // both are pointers on purpose
         ctx_switch(&proc_curr->ksp, &proc_next->ksp);
@@ -119,19 +115,17 @@ static void proc_yield(queue_t queue) {
 }
 
 /* * * * * * * */
-// basically condition variables (self explanatory)
+// basically condition variables
 
 static void msg_wait() { proc_yield(proc_curr->msgwaitQ); }
 static void msg_notify(struct process *recipient) {
-    if (queue_length(recipient->msgwaitQ) == 0) return;
+    if (queue_length(recipient->msgwaitQ) == 0) 
+        return;
     if (queue_length(recipient->msgwaitQ) > 1)
         FATAL("notify: more than one process on proc %d's msgwaitQ", recipient->pid);
     
-    if (queue_pop(recipient->msgwaitQ, EGOSNULL) < 0)
-        FATAL("notify: failed to pop off of proc %d's msgwaitQ", recipient->pid);
-
-    if (queue_push(runQ, recipient) < 0)
-        FATAL("notify: failed to push recipient %d onto runQ", recipient->pid);
+    queue_pop(recipient->msgwaitQ, EGOSNULL);
+    queue_push(runQ, recipient);
 }
 
 /* * * * * * * */
@@ -152,22 +146,17 @@ static void proc_try_recv() {
     int sender_pid = proc_curr->syscall.sender;
 
     if (sender_pid == GPID_ALL) {
-        // don't care who sends to us, head of our senderQ is chosen
-        if (queue_pop(proc_curr->senderQ, (void**)&sender) < 0)
-            FATAL("proc_try_recv: failed to pop off proc %d's non-empty senderQ", proc_curr->pid);
-    }
-    else {
+        // take head of sendQ as the process that successfully sends to us
+        queue_pop(proc_curr->senderQ, (void**)&sender);
+    } else {
         // wait until desired sender is on our senderQ, then delete
         while ((sender = proc_pcb_find(proc_curr->senderQ, sender_pid)) == EGOSNULL)
             msg_wait();
-        
-        if (queue_delete(proc_curr->senderQ, sender) < 0)
-            FATAL("proc_try_recv: failed to delete proc %d off of proc %d's senderQ", sender->pid, proc_curr->pid);
+        queue_delete(proc_curr->senderQ, sender);
     }
 
-    // put sender back on runQ
-    if (queue_push(runQ, sender) < 0)
-        FATAL("proc_try_recv: failed to push %d onto runQ", sender->pid);
+    // make sender runnable
+    queue_push(runQ, sender);
 
     // transfer message from sender's PCB to receiver's userspace msg buffer
     struct syscall *sc = (void*)SYSCALL_ARG;

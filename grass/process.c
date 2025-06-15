@@ -19,21 +19,20 @@ struct process *proc_found;
  */
 void __proc_pcb_find_enumerate(void *item, void *pid) {
     if (item == EGOSNULL)
-        FATAL("__proc_pcb_find_enumerate: item is NULL");
+        FATAL("__proc_pcb_find_enumerate: item is NULL (should be PCB)");
     struct process *p = item;
     if (p->pid == (int)pid)
         proc_found = p;
 }
 
 /**
- * proc_pcb_find: find a process (in the `queue`) that matches `pid`
+ * proc_pcb_find: find a process (in the `queue`) that matches `pid`. 
+ * Returns EGOSNULL if a process with pid equal to `pid` is not found in `queue`
  */
 struct process *proc_pcb_find(queue_t queue, int pid) {
     proc_found = EGOSNULL;
     queue_iterate(queue, __proc_pcb_find_enumerate, (void*)pid);
 
-    if (proc_found == EGOSNULL)
-        FATAL("proc_pcb_find: failed to find process w/ pid %d", pid);
     if (proc_found->pid != pid)
         FATAL("proc_pcb_find: found proc %d instead of %d", proc_found->pid, pid);
     return proc_found;
@@ -59,15 +58,10 @@ struct process *proc_alloc() {
     proc->kstack = egosalloc(SIZE_KSTACK);
     proc->ksp    = (void*)((uint)proc->kstack + SIZE_KSTACK);
 
-    if ((proc->senderQ = queue_new()) < 0)
-        FATAL("proc_alloc: failed to alloc senderQ");
-    if ((proc->msgwaitQ = queue_new()) < 0)
-        FATAL("proc_alloc: failed to alloc msgwaitQ");
+    proc->senderQ  = queue_new();
+    proc->msgwaitQ = queue_new();
 
-    if (proc->kstack == EGOSNULL)
-        FATAL("proc_alloc: failed to alloc kstack");
-    if (list_append(proc_set, proc) < 0)
-        FATAL("proc_alloc: failed to push new proc onto proc_set");
+    list_append(proc_set, proc);
     return proc;
 }
 
@@ -93,12 +87,10 @@ void proc_free(int pid) {
     queue_delete(runQ, proc_being_killed);
     list_delete(proc_set, proc_being_killed);
     
-    // free app memory, kernel stack, senderQ, and PCB
+    // free app memory, kernel stack, senderQ, msgwaitQ, and PCB
     earth->mmu_free(pid);
     egosfree(proc_being_killed->kstack);
-    if (queue_free(proc_being_killed->senderQ) < 0)
-        FATAL("proc_free: failed to free proc %d senderQ", pid);
-    if (queue_free(proc_being_killed->msgwaitQ) < 0)
-        FATAL("proc_free: failed to free proc %d msgwaitQ", pid);
+    queue_free(proc_being_killed->senderQ);
+    queue_free(proc_being_killed->msgwaitQ);
     egosfree(proc_being_killed);
 }
