@@ -77,7 +77,7 @@ static void proc_try_syscall();
 static void excp_entry(uint id) {
     if (id == EXCP_ID_ECALL_M) {
         proc_curr->mepc += 4;
-        memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(SYSCALL_MSG_LEN));
+        memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(struct syscall));
         proc_try_syscall();
         proc_yield(runQ);
         return;
@@ -114,16 +114,46 @@ static void proc_yield(queue_t queue) {
         proc_switch_aftermath();
     }
     else {
-        FATAL("proc_yield: no more processes to schedule");
+        FATAL("proc_yield: no more processes to schedule %x", proc_curr->pid);
     }
 }
 
 static void proc_try_send() {
-    FATAL("proc_try_send: unimplemented");
+    struct process *receiver = proc_pcb_find(proc_set, proc_curr->syscall.receiver);
+    proc_yield(receiver->senderQ);
 }
 
 static void proc_try_recv() {
-    FATAL("proc_try_recv: unimplemented");
+    // wait until someone wants to send a message to us (the receiver)
+    while (!queue_length(proc_curr->senderQ))
+        proc_yield(runQ);
+
+    // attempt to find the desired sender from our senderQ
+    struct process *sender;
+    int sender_pid = proc_curr->syscall.sender;
+
+    if (sender_pid == GPID_ALL) {
+        // don't care who sends to us, head of our senderQ is chosen
+        if (queue_pop(proc_curr->senderQ, (void**)&sender) < 0)
+            FATAL("proc_try_recv: failed to pop off proc %d's non-empty senderQ", proc_curr->pid);
+    }
+    else {
+        // wait until desired sender is on our senderQ, then delete
+        while ((sender = proc_pcb_find(proc_curr->senderQ, sender_pid)) == EGOSNULL)
+            proc_yield(runQ);
+        
+        if (queue_delete(proc_curr->senderQ, sender) < 0)
+            FATAL("proc_try_recv: failed to delete proc %d off of proc %d's senderQ", sender->pid, proc_curr->pid);
+    }
+
+    // put sender back on runQ
+    if (queue_push(runQ, sender) < 0)
+        FATAL("proc_try_recv: failed to push %d onto runQ", sender->pid);
+
+    // transfer message from sender's PCB to receiver's userspace msg buffer
+    struct syscall *sc = (void*)SYSCALL_ARG;
+    sc->sender = sender->pid;
+    memcpy(sc->content, sender->syscall.content, SYSCALL_MSG_LEN);
 }
 
 static void proc_try_syscall() {
