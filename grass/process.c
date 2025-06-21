@@ -77,7 +77,7 @@ void proc_free(int pid) {
     }
 
     struct process *proc_being_killed;
-    if ((proc_being_killed = proc_pcb_find(proc_set, pid)) < 0)
+    if ((proc_being_killed = proc_pcb_find(proc_set, pid)) == EGOSNULL)
         FATAL("proc_free: failed to find pcb of proc %d", pid);
 
     if (queue_length(proc_being_killed->senderQ) > 0)
