@@ -77,7 +77,7 @@ void grass_entry() {
     /* Student's code ends here. */
 
     /* Load GPID_PROCESS. */
-    INFO("Load kernel process #%d: sys_process", GPID_PROCESS);
+    FATAL("Load kernel process #%d: sys_process", GPID_PROCESS);
     elf_load(GPID_PROCESS, sys_proc_read, 0, 0);
 
     /* create kernel data structures */
@@ -92,8 +92,10 @@ void grass_entry() {
 
     if (proc_curr->pid != GPID_PROCESS)
         FATAL("grass_entry: first alloc'd process has pid %d instead of 1", proc_curr->pid);
-    earth->mmu_switch(GPID_PROCESS);
-    earth->mmu_flush_cache();
+
+    FATAL("grass_entry: about to switch to first process' memory");
+    //earth->mmu_switch(GPID_PROCESS);
+    //earth->mmu_flush_cache();
 
     uint mstatus, M_MODE = 3, U_MODE = 0;
     uint GRASS_MODE = (earth->translation == SOFT_TLB) ? M_MODE : U_MODE;

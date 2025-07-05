@@ -1,19 +1,14 @@
 #pragma once
-
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long long ulonglong;
+#include "types.h"
+#include "mmu.h"
 
 struct earth {
-    uint (*mmu_alloc)();
-    void (*mmu_free)(int pid);
-    void (*mmu_flush_cache)();
     void (*timer_reset)(uint core_id);
 
-    void (*mmu_map)(int pid, uint vpage_no, uint ppage_id);
-    uint (*mmu_translate)(int pid, uint vaddr);
-    void (*mmu_switch)(int pid);
+    uint (*mmu_alloc)();
+    void (*mmu_map)(ppte pte, uint frame_num, uint perms);
+    void (*mmu_unmap)(ppte pte);
+    void (*mmu_switch)(pseudopgtbl pgtbl_old, pseudopgtbl pgtbl_new);
 
     void (*tty_read)(char* c);
     void (*tty_write)(char c);
@@ -47,7 +42,7 @@ extern struct grass* grass;
 #define HEAP_END          0x82000000
 #define HEAP_START        0x81000000 /* 16MB HEAP */
 #define RAM_END           0x81000000 /* 16MB memory [0x80000000,0x81000000) */
-#define APPS_PAGES_BASE   0x80800000 /* 8MB free for mmu_alloc              */
+#define APPS_FRAMES_BASE  0x80800000 /* 8MB free for mmu_alloc              */
 #define APPS_STACK_TOP    0x80800000 /* 2MB app stack (growing down)        */
 #define SHELL_WORK_DIR    0x80602000 /* current work directory for shell    */
 #define SYSCALL_ARG       0x80601000 /* struct syscall                      */

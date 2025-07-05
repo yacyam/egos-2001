@@ -12,8 +12,12 @@ struct process {
     uint mepc;
     struct syscall syscall;
     queue_t senderQ;  // queue of processes that want to send a message to this process
-    queue_t msgwaitQ; // temporary place that a receiver can wait in until they get msg (INVARIANT: always at most one process on msgwaitQ)
+    queue_t msgwaitQ; // temporary place that a receiver can wait in until they get msg
+
+    // memory business
     void *kstack, *ksp;
+    segmenttbl sgtbl;
+    pseudopgtbl pgtbl;
 };
 
 ulonglong mtime_get();

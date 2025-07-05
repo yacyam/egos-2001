@@ -48,6 +48,7 @@ void proc_set_ready(struct process *proc) {
  * Returns NULL if OOM.
  */
 struct process *proc_alloc() {
+    FATAL("proc_alloc: handle changing params to pass in segtbl and pgtbl");
     static uint curr_pid = 0;
 
     struct process *proc = egozalloc(sizeof(struct process));
@@ -72,6 +73,7 @@ struct process *proc_alloc() {
  * TODO: resolve any outstanding messages being sent to this process.
  */
 void proc_free(int pid) {
+    FATAL("proc_free: unmap entire address space");
     if (pid == GPID_ALL) {
         FATAL("proc_free: killing all user processes unimplemented");
     }
@@ -88,7 +90,6 @@ void proc_free(int pid) {
     list_delete(proc_set, proc_being_killed);
     
     // free app memory, kernel stack, senderQ, msgwaitQ, and PCB
-    earth->mmu_free(pid);
     egosfree(proc_being_killed->kstack);
     queue_free(proc_being_killed->senderQ);
     queue_free(proc_being_killed->msgwaitQ);

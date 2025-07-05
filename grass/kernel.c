@@ -31,9 +31,9 @@ struct process *proc_curr, *proc_next;
  * `proc_next` is the process that was switched to.
  */
 void proc_switch_aftermath() {
+    FATAL("proc_switch_aftermath: handle calling mmu_switch");
     proc_curr = proc_next;
-    earth->mmu_switch(proc_curr->pid);
-    earth->mmu_flush_cache();
+    //earth->mmu_switch(proc_curr->pid);
     earth->timer_reset(core_in_kernel);
 }
 
@@ -44,6 +44,8 @@ void proc_switch_aftermath() {
  */
 void ctx_entry() {
     proc_switch_aftermath();
+
+    FATAL("ctx_entry: set up mstatus here as well");
 
     // simulate an interrupt (could clear out other regs but i am lazy).
     // app.s sets the stack pointer
@@ -58,8 +60,9 @@ static void intr_entry(uint);
 static void excp_entry(uint);
 
 void kernel_entry() {
+    //FATAL("kernel_entry: save and restore mstatus");
     asm("csrr %0, mhartid":"=r"(core_in_kernel));
-    asm("csrr %0, mepc":"=r"(proc_curr->mepc));
+    //asm("csrr %0, mepc":"=r"(proc_curr->mepc));
 
     uint mcause;
     asm("csrr %0, mcause" : "=r"(mcause));
@@ -75,6 +78,9 @@ static void proc_yield(queue_t queue);
 static void proc_try_syscall();
 
 static void excp_entry(uint id) {
+    uint mepc;
+    asm("csrr %0, mepc":"=r"(mepc));
+    FATAL("excp %d, %x", id, mepc);
     if (id == EXCP_ID_ECALL_U || id == EXCP_ID_ECALL_M) {
         proc_curr->mepc += 4;
         memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(struct syscall));
@@ -87,6 +93,7 @@ static void excp_entry(uint id) {
 }
 
 static void intr_entry(uint id) {
+    FATAL("intr %d", id);
     if (id == INTR_ID_TIMER) { proc_yield(runQ); return; }
     
     FATAL("intr_entry: proc %d got unknown id %d", proc_curr->pid, id);

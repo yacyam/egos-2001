@@ -12,6 +12,6 @@
 #include <string.h>
 
 int main() {
-    memset((void*)APPS_PAGES_BASE, 0, RAM_END - APPS_PAGES_BASE);
+    memset((void*)APPS_FRAMES_BASE, 0, RAM_END - APPS_FRAMES_BASE);
     return 0;
 }
