@@ -43,11 +43,16 @@ extern struct grass* grass;
 #define HEAP_START        0x81000000 /* 16MB HEAP */
 #define RAM_END           0x81000000 /* 16MB memory [0x80000000,0x81000000) */
 #define APPS_FRAMES_BASE  0x80800000 /* 8MB free for mmu_alloc              */
-#define APPS_STACK_TOP    0x80800000 /* 2MB app stack (growing down)        */
-#define SHELL_WORK_DIR    0x80602000 /* current work directory for shell    */
-#define SYSCALL_ARG       0x80601000 /* struct syscall                      */
-#define APPS_ARG          0x80600000 /* main() arguments (argc and argv)    */
-#define APPS_ENTRY        0x80400000 /* 2MB app code and data               */
+
+// end of app pages
+#define APPS_STACK_TOP    0x80440000 /* 64KB app stack (growing down)        */
+#define SHELL_WORK_DIR    0x80432000 /* current work directory for shell    */
+#define SYSCALL_ARG       0x80431000 /* struct syscall                      */
+#define APPS_ARG          0x80430000 /* main() arguments (argc and argv)    */
+// 128 KB hole (0x80410000 to 0x80430000)
+#define APPS_ENTRY        0x80400000 /* 64KB app code and data              */
+// start of app pages
+
 #define BOOT_STACK_TOP    0x80400000 /* 2MB boot stack (growing down)       */
 #define GRASS_STRUCT_BASE 0x80201000 /* struct grass                        */
 #define EARTH_STRUCT_BASE 0x80200000 /* struct earth                        */

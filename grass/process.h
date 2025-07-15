@@ -16,7 +16,7 @@ struct process {
 
     // memory business
     void *kstack, *ksp;
-    segmenttbl sgtbl;
+    segmenttbl segtbl;
     pseudopgtbl pgtbl;
 };
 

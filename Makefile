@@ -27,7 +27,7 @@ EGOS_DEPS   = earth/* grass/* library/egos.h library/*/* Makefile
 
 FILESYS     = 1
 LDFLAGS     = -nostdlib -lc -lgcc
-INCLUDE     = -Ilibrary -Ilibrary/elf -Ilibrary/file -Ilibrary/libc -Ilibrary/syscall -Iearth/
+INCLUDE     = -Ilibrary -Ilibrary/elf -Ilibrary/file -Ilibrary/libc -Ilibrary/syscall -Iearth/ -Igrass/
 CFLAGS      = -march=rv32ima_zicsr -mabi=ilp32 -Wl,--gc-sections -ffunction-sections -fdata-sections -fdiagnostics-show-option
 DEBUG_FLAGS = --source --all-headers --demangle --line-numbers --wide
 

@@ -70,15 +70,6 @@ void grass_entry() {
     grass->proc_set_ready = proc_set_ready;
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
-    /* Student's code goes here (System Call | Multicore & Locks). */
-
-    /* Initialize the grass interface for proc_sleep() or proc_coresinfo(). */
-
-    /* Student's code ends here. */
-
-    /* Load GPID_PROCESS. */
-    FATAL("Load kernel process #%d: sys_process", GPID_PROCESS);
-    elf_load(GPID_PROCESS, sys_proc_read, 0, 0);
 
     /* create kernel data structures */
     if ((proc_set = list_new()) == EGOSNULL)
@@ -89,9 +80,10 @@ void grass_entry() {
         FATAL("grass_entry: failed to create readyQ");
 
     proc_curr = proc_alloc();
-
     if (proc_curr->pid != GPID_PROCESS)
         FATAL("grass_entry: first alloc'd process has pid %d instead of 1", proc_curr->pid);
+
+    elf_setup_kernel_proc_memory(proc_curr, sys_proc_read);
 
     FATAL("grass_entry: about to switch to first process' memory");
     //earth->mmu_switch(GPID_PROCESS);

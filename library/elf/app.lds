@@ -4,14 +4,18 @@ ENTRY(app_entry)
 
 MEMORY
 {
-    code (rx) : ORIGIN = 0x80400000, LENGTH = 0x8000
-    data (rw) : ORIGIN = 0x80408000, LENGTH = 0x1F8000
+    code (rx) : ORIGIN = 0x80400000, LENGTH = 0x4000
+    data (rw) : ORIGIN = 0x80404000, LENGTH = 0x4000
+    bss  (rw) : ORIGIN = 0x80408000, LENGTH = 0x4000
+    heap (rw) : ORIGIN = 0x8040C000, LENGTH = 0x4000
 }
 
 PHDRS
 {
     code PT_LOAD;
     data PT_LOAD;
+    bss  PT_LOAD;
+    heap PT_LOAD;
 }
 
 SECTIONS
@@ -37,11 +41,12 @@ SECTIONS
         *(.sbss*)
         *(.bss .bss.*)
         *(COMMON)
-    } >data :data
+    } >bss :bss
 
     .heap (NOLOAD) : ALIGN(8) {
           PROVIDE( __heap_start = . );
-    } >data :data
+          . += 0x4000;
+    } >heap : heap
 
-    PROVIDE( __heap_end = 0x80600000 );
+    PROVIDE( __heap_end = . );
 }

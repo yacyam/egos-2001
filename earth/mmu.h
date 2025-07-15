@@ -1,12 +1,11 @@
 #pragma once
 
 #include "types.h"
+#include "list.h"
 
 #define PAGE_SIZE    4096
 #define NUM_PAGES    64 // size of process' address space
-#define NUM_SEGMENTS 4  // every process has code + data + heap + stack
 
-// opposite of what you expect :)
 #define PERMS_RWX  0b111
 #define PERMS_RO   0b001
 #define PERMS_RX   0b101
@@ -31,12 +30,14 @@ typedef struct _pseudopgtbl {
 // some examples include: code, data, heap, stack
 typedef struct _segment {
     uint address, size, perms_max;
+    int ino;
+    uint offset;
 } segment;
 
-// a segment table is a fixed collection of segments.
+// a segment table is a collection of segments
 // every process contains a segment table
 typedef struct _segmenttbl {
-    segment segments[NUM_SEGMENTS];
+    list_t segments;
 } segmenttbl;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

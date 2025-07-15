@@ -87,12 +87,13 @@ static int app_spawn(struct proc_request* req) {
     if ((app_ino = dir_lookup(bin_ino, req->argv[0])) < 0) return CMD_ERROR;
     int argc = req->argv[req->argc - 1][0] == '&' ? req->argc - 1 : req->argc;
 
-    struct process *app = grass->proc_alloc();
-    elf_load(app->pid, app_read, argc, (void**)req->argv);
-    grass->proc_set_ready(app);
+    FATAL("app_spawn: spawning process");
+    // struct process *app = grass->proc_alloc();
+    // elf_load(app->pid, app_read, argc, (void**)req->argv);
+    // grass->proc_set_ready(app);
 
-    app_pid = app->pid;
-    return CMD_OK;
+    // app_pid = app->pid;
+    // return CMD_OK;
 }
 
 static int sys_apps_base;
@@ -104,9 +105,9 @@ static void sys_proc_read(uint block_no, char* dst) {
 
 static void sys_spawn(uint base) {
     struct process *proc_sys = grass->proc_alloc();
-    INFO("Load kernel process #%d: %s", proc_sys->pid, sys_apps[proc_sys->pid - 1]);
+    FATAL("Load kernel process #%d: %s", proc_sys->pid, sys_apps[proc_sys->pid - 1]);
 
-    sys_apps_base = base;
-    elf_load(proc_sys->pid, sys_proc_read, 0, NULL);
-    grass->proc_set_ready(proc_sys);
+    // sys_apps_base = base;
+    // elf_load(proc_sys->pid, sys_proc_read, 0, NULL);
+    // grass->proc_set_ready(proc_sys);
 }

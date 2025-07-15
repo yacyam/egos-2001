@@ -1,5 +1,7 @@
 #pragma once
 
+#include "process.h"
+
 struct elf32_header {
     uchar e_ident[16];
     ushort e_type;
@@ -29,4 +31,5 @@ struct elf32_program_header {
 };
 
 typedef void (*elf_reader)(uint block_no, char* dst);
-void elf_load(int pid, elf_reader reader, int argc, void** argv);
+void elf_setup_kernel_proc_memory(struct process *proc, elf_reader reader);
+void elf_setup_user_proc_memory(struct process *proc, uint ino, int argc, void** argv);

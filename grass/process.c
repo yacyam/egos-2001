@@ -7,6 +7,7 @@
 
 #include "process.h"
 #include "list.h"
+#include <string.h>
 extern list_t proc_set;
 extern queue_t runQ;
 extern queue_t readyQ;
@@ -48,19 +49,24 @@ void proc_set_ready(struct process *proc) {
  * Returns NULL if OOM.
  */
 struct process *proc_alloc() {
-    FATAL("proc_alloc: handle changing params to pass in segtbl and pgtbl");
     static uint curr_pid = 0;
 
     struct process *proc = egozalloc(sizeof(struct process));
     if (proc == EGOSNULL)
         FATAL("proc_alloc: failed to alloc PCB");
 
-    proc->pid    = ++curr_pid;
+    proc->pid = ++curr_pid;
+    
+    // set up kernel stack
     proc->kstack = egosalloc(SIZE_KSTACK);
     proc->ksp    = (void*)((uint)proc->kstack + SIZE_KSTACK);
 
+    // set up IPC queues
     proc->senderQ  = queue_new();
     proc->msgwaitQ = queue_new();
+
+    // set up "virtual" memory of process
+    proc->segtbl.segments = list_new();
 
     list_append(proc_set, proc);
     return proc;
