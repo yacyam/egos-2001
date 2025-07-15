@@ -10,10 +10,12 @@
 #include "egos.h"
 #include "mmu.h"
 #include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
-#define PAGE_NO_TO_ADDR(x) (char*)(x * PAGE_SIZE)
-#define PAGE_ID_TO_ADDR(x) ((char*)APPS_FRAMES_BASE + x * PAGE_SIZE)
-#define APPS_FRAMES_CNT    (RAM_END - APPS_FRAMES_BASE) / PAGE_SIZE
+#define PAGE_NO_TO_ADDR(x)     (char*)(x * PAGE_SIZE)
+#define COREMAP_IDX_TO_ADDR(x) ((char*)APPS_FRAMES_BASE + x * PAGE_SIZE)
+#define APPS_FRAMES_CNT        (RAM_END - APPS_FRAMES_BASE) / PAGE_SIZE
 
 // maintains metadata on each physical frame in memory
 coremap_entry coremap[APPS_FRAMES_CNT];
@@ -25,8 +27,43 @@ uint frame_alloc() {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#define NUM_PMPSLOTS         NUM_PAGES
+#define NUM_PMPSLOTS_PER_REG 4
+
+#define PMPCFG_START         0x3A0
+#define PMPADDR_START        0x3B0
+
+#define PMP_34BIT_CONVERT()
+
+/**
+ * lifted from https://github.com/ultraembedded/FPGAmp/blob/master/firmware/arch/riscv/csr.h#L45
+ * 
+ * reg: integer address of CSR
+ * val: value to place inside CSR
+ */
+#define csr_write(reg, val) ({ \
+  asm volatile ("csrw " #reg ", %0" :: "rK"(val)); })
+
+void _pmp_addr_set(uint idx) {
+    if (idx >= NUM_PMPSLOTS)
+        FATAL("_pmp_addr_set: pmp slot %d is out of range of %d slots", idx, NUM_PMPSLOTS);
+
+    FATAL("_pmp_addr_set: unimplemented");
+}
+
+void _pmp_cfg_set(uint idx, uint perms) {
+    if (idx >= NUM_PMPSLOTS)
+        FATAL("_pmp_cfg_set: attempting to set pmp slot %d which is out of \
+            range for %d slots", idx, NUM_PMPSLOTS);
+    
+    FATAL("_pmp_cfg_set: unimplemented");
+}
+
 void _pmp_init() {
-    FATAL("_pmp_init: unimplemented");
+    for (int i = 0; i < NUM_PMPSLOTS; i++) {
+        _pmp_addr_set(i);
+        _pmp_cfg_set(i, PERMS_NONE);
+    }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -53,11 +90,6 @@ void mmu_init() {
     earth->mmu_unmap  = ppt_unmap;
     earth->mmu_switch = ppt_switch;
 
-
-    /* Setup a PMP region for the whole 4GB address space. */
-    asm("csrw pmpaddr0, %0" : : "r"(0x40000000));
-    asm("csrw pmpcfg0, %0" : : "r"(0xF));
-
-    FATAL("mmu_init: set up state for pmp registers");
-
+    // TODO: finish initializing PMP registers
+    //_pmp_init();
 }
