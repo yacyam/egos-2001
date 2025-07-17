@@ -5,10 +5,10 @@
 struct earth {
     void (*timer_reset)(uint core_id);
 
-    uint (*mmu_alloc)();
-    void (*mmu_map)(ppte pte, uint frame_num, uint perms);
-    void (*mmu_unmap)(ppte pte);
-    void (*mmu_switch)(pseudopgtbl pgtbl_old, pseudopgtbl pgtbl_new);
+    int  (*mmu_alloc)();
+    void (*mmu_map)(ppte *pte, uint frame_num, int perms);
+    void (*mmu_unmap)(ppte *pte);
+    void (*mmu_switch)(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new);
 
     void (*tty_read)(char* c);
     void (*tty_write)(char c);
@@ -66,6 +66,18 @@ extern struct grass* grass;
 #define SPI_BASE         (earth->platform == ARTY ? 0xF0008800UL : 0x10050000UL)
 #define UART_BASE        (earth->platform == ARTY ? 0xF0001000UL : 0x10010000UL)
 #define CLINT_BASE       (earth->platform == ARTY ? 0xF0010000UL : 0x02000000UL)
+
+// a real address is a 32 bit value that references physical memory
+
+// every address a process will reference is inside of 0x80400000 - 0x80440000
+#define REAL_ADDR_TO_PAGE_NUM(addr) (((addr - APPS_ENTRY) >> PAGE_NBITS))
+#define PAGE_NUM_TO_REAL_ADDR(page) (((page << PAGE_NBITS) + APPS_ENTRY))
+
+// every address referencing a frame is inside the region 0x80800000 - 0x81000000
+#define REAL_ADDR_TO_FRAME_NUM(addr)  (((addr - APPS_FRAMES_BASE) >> PAGE_NBITS))
+#define FRAME_NUM_TO_REAL_ADDR(frame) (((frame << PAGE_NBITS) + APPS_FRAMES_BASE))
+
+#define REAL_ADDR_TRUNC_OFFSET(addr) ((addr >> PAGE_NBITS))
 
 /* Below are some common macros/declarations for I/O, multicore and printing. */
 #define ACCESS(x)          (*(__typeof__(*x) volatile*)(x))

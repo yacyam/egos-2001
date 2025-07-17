@@ -8,6 +8,10 @@ int list_append(list_t list, void *item) {
     return queue_insert(list, item); 
 }
 
+int list_pop(list_t list, void **pitem) {
+    return queue_pop(list, pitem);
+}
+
 void list_iterate(const list_t list, list_func_t f, void *context) { 
     queue_iterate(list, f, context); 
 }

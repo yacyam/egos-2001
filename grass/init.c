@@ -85,9 +85,11 @@ void grass_entry() {
 
     elf_setup_kernel_proc_memory(proc_curr, sys_proc_read);
 
-    FATAL("grass_entry: about to switch to first process' memory");
-    //earth->mmu_switch(GPID_PROCESS);
-    //earth->mmu_flush_cache();
+    for (int i = 0; i < NUM_PAGES; i++) {
+        INFO("grass_entry: page=%d, is_mapped=%d, frame=%d, perms=%x", i, proc_curr->pgtbl.tbl[i].present, proc_curr->pgtbl.tbl[i].frame_num, proc_curr->pgtbl.tbl[i].perms);
+    }
+
+    FATAL("good to go?");
 
     uint mstatus, M_MODE = 3, U_MODE = 0;
     uint GRASS_MODE = (earth->translation == SOFT_TLB) ? M_MODE : U_MODE;

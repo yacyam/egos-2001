@@ -16,6 +16,12 @@ list_t list_new();
  */ 
 int list_append(list_t list, void* item);
 
+/**
+ * pop first item off of list (in LIFO order).
+ * Returns -1 if list is empty.
+ */
+int list_pop(list_t list, void** pitem);
+
 /*
  * Call f(item, context) for each item in list
  */

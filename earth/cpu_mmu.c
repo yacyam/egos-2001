@@ -9,6 +9,7 @@
 
 #include "egos.h"
 #include "mmu.h"
+#include "kmem.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -21,8 +22,11 @@
 coremap_entry coremap[APPS_FRAMES_CNT];
 
 // returns a frame number that has a reference count of zero
-uint frame_alloc() {
-    FATAL("frame_alloc: unimplemented");
+int frame_alloc() {
+    for (int frame_num = 0; frame_num < APPS_FRAMES_CNT; frame_num++)
+        if (coremap[frame_num].refcnt == 0)
+            return frame_num;
+    FATAL("frame_alloc: no more free frames");
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -68,15 +72,25 @@ void _pmp_init() {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void ppt_unmap(ppte pte) {
-    FATAL("ppt_unmap: unimplemented");
+void ppt_unmap(ppte *pte) {
+    if (!pte->present) FATAL("ppt_unmap: cannot unmap page that isn't there");
+
+    coremap[pte->frame_num].refcnt--;
+    memset(pte, 0, sizeof(*pte));
 }
 
-void ppt_map(ppte pte, uint frame_num, uint perms) {
-    FATAL("ppt_map: unimplemented");
+void ppt_map(ppte *pte, uint frame_num, int perms) {
+    if (pte->present) FATAL("ppt_map: handle present case");
+    if (frame_num >= APPS_FRAMES_CNT) FATAL("ppt_map: frame %x too large", frame_num);
+
+    *pte = (ppte) {
+        .frame_num = frame_num,
+        .perms = perms, .present = egostrue
+    };
+    coremap[frame_num].refcnt++;
 }
 
-void ppt_switch(pseudopgtbl pgtbl_old, pseudopgtbl pgtbl_new) {
+void ppt_switch(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new) {
     FATAL("ppt_switch: unimplemented");
 }
 

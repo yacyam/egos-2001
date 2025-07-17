@@ -4,12 +4,17 @@
 #include "list.h"
 
 #define PAGE_SIZE    4096
+#define PAGE_NBITS   12
 #define NUM_PAGES    64 // size of process' address space
 
 #define PERMS_RWX  0b111
 #define PERMS_RO   0b001
 #define PERMS_RX   0b101
+#define PERMS_RW   0b011
 #define PERMS_NONE 0b000
+
+// grab bit [b] from [x]
+#define BIT(x, b) (((1 << b) & x))
 
 // pseudo page table entry corresponds a page to a frame 
 typedef struct _ppte {
