@@ -91,7 +91,18 @@ void ppt_map(ppte *pte, uint frame_num, int perms) {
 }
 
 void ppt_switch(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new) {
-    FATAL("ppt_switch: unimplemented");
+
+    /** TODO: set up pmp registers */
+    for (uint page = 0; page < NUM_PAGES; page++) {
+        if (pgtbl_old && pgtbl_old->tbl[page].present)
+            memcpy((void*)FRAME_NUM_TO_REAL_ADDR(pgtbl_old->tbl[page].frame_num), \
+                (void*)PAGE_NUM_TO_REAL_ADDR(page), PAGE_SIZE);
+
+        if (pgtbl_new->tbl[page].present)
+            memcpy((void*)PAGE_NUM_TO_REAL_ADDR(page), \
+                (void*)FRAME_NUM_TO_REAL_ADDR(pgtbl_new->tbl[page].frame_num), PAGE_SIZE);
+
+    }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

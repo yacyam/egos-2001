@@ -105,9 +105,9 @@ static void sys_proc_read(uint block_no, char* dst) {
 
 static void sys_spawn(uint base) {
     struct process *proc_sys = grass->proc_alloc();
-    FATAL("Load kernel process #%d: %s", proc_sys->pid, sys_apps[proc_sys->pid - 1]);
+    INFO("Load kernel process #%d: %s", proc_sys->pid, sys_apps[proc_sys->pid - 1]);
 
-    // sys_apps_base = base;
-    // elf_load(proc_sys->pid, sys_proc_read, 0, NULL);
-    // grass->proc_set_ready(proc_sys);
+    sys_apps_base = base;
+    elf_setup_kernel_proc_memory(proc_sys, sys_proc_read);
+    grass->proc_set_ready(proc_sys);
 }

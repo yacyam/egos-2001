@@ -45,6 +45,8 @@ void elf_setup_kernel_proc_memory(struct process *proc, elf_reader reader) {
         uint page = REAL_ADDR_TO_PAGE_NUM(pheader[i].p_vaddr);
         uint block_no = pheader[i].p_offset / BLOCK_SIZE; // byte offset to block offset
 
+        // every segment is set up to either completely be inside or outside a file (in app.lds)
+        // TODO: Do better job of handling non-page-aligned memsz.
         for (uint _ = 0; _ < pheader[i].p_memsz; _ += PAGE_SIZE) {
             frame = __alloc_frame_and_map_page(proc, page++, perms);
 

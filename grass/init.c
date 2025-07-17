@@ -84,15 +84,10 @@ void grass_entry() {
         FATAL("grass_entry: first alloc'd process has pid %d instead of 1", proc_curr->pid);
 
     elf_setup_kernel_proc_memory(proc_curr, sys_proc_read);
-
-    for (int i = 0; i < NUM_PAGES; i++) {
-        INFO("grass_entry: page=%d, is_mapped=%d, frame=%d, perms=%x", i, proc_curr->pgtbl.tbl[i].present, proc_curr->pgtbl.tbl[i].frame_num, proc_curr->pgtbl.tbl[i].perms);
-    }
-
-    FATAL("good to go?");
-
+    earth->mmu_switch(EGOSNULL, &proc_curr->pgtbl);
+    
     uint mstatus, M_MODE = 3, U_MODE = 0;
-    uint GRASS_MODE = (earth->translation == SOFT_TLB) ? M_MODE : U_MODE;
+    uint GRASS_MODE = M_MODE;
     asm("csrr %0, mstatus" : "=r"(mstatus));
     mstatus = (mstatus & ~(3 << 11)) | (GRASS_MODE << 11);
     asm("csrw mstatus, %0" ::"r"(mstatus));
