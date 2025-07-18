@@ -71,13 +71,13 @@ void queue_invariants(queue_t queue) {
 
 queue_t queue_new() {
     /* Initialize memory for queue, and two dummy nodes */
-    queue_t queue      = egozalloc(sizeof(*queue));
-    node_t  dummy_head = egozalloc(sizeof(*dummy_head));
-    node_t  dummy_tail = egozalloc(sizeof(*dummy_tail));
+    queue_t queue      = grass->sys_egozalloc(sizeof(*queue));
+    node_t  dummy_head = grass->sys_egozalloc(sizeof(*dummy_head));
+    node_t  dummy_tail = grass->sys_egozalloc(sizeof(*dummy_tail));
 
     /* Ran out of memory */
     if (queue == EGOSNULL || dummy_head == EGOSNULL || dummy_tail == EGOSNULL)
-        return EGOSNULL;
+        FATAL("queue_new: ran out of memory");
 
     /* Initialize dummy nodes to point to one another */
     dummy_head->type = dummy_tail->type = NODE_DUMMY;
@@ -94,7 +94,7 @@ int queue_push(queue_t queue, void* item) {
     queue_invariants(queue);
 
     node_t dummy_tail     = queue->tail;
-    node_t dummy_tail_new = egozalloc(sizeof(*dummy_tail_new));
+    node_t dummy_tail_new = grass->sys_egozalloc(sizeof(*dummy_tail_new));
 
     /* Ran out of memory */
     if (dummy_tail_new == EGOSNULL) return -1;
@@ -117,10 +117,11 @@ int queue_insert(queue_t queue, void* item) {
     queue_invariants(queue);
 
     node_t dummy_head     = queue->head;
-    node_t dummy_head_new = egozalloc(sizeof(*dummy_head_new));
+    node_t dummy_head_new = grass->sys_egozalloc(sizeof(*dummy_head_new));
 
     /* Ran out of memory */
-    if (dummy_head_new == EGOSNULL) return -1;
+    if (dummy_head_new == EGOSNULL) 
+        FATAL("queue_insert: oom");
 
     /* Current head is updated to hold the enqueued item */
     dummy_head->type = NODE_REAL;
@@ -149,7 +150,7 @@ int queue_pop(queue_t queue, void** pitem) {
 
     /* Remove [head_real] from queue and free its associated memory */
     queue->head->next = head_real->next;
-    egosfree(head_real);
+    grass->sys_egosfree(head_real);
 
     queue->size--;
     queue_invariants(queue);
@@ -173,9 +174,9 @@ int queue_free(queue_t queue) {
     queue_invariants(queue);
     if (queue->size > 0) return -1;
 
-    egosfree(queue->head);
-    egosfree(queue->tail);
-    egosfree(queue);
+    grass->sys_egosfree(queue->head);
+    grass->sys_egosfree(queue->tail);
+    grass->sys_egosfree(queue);
     return 0;
 }
 
@@ -200,7 +201,7 @@ int queue_delete(queue_t queue, void* item) {
         if (node_curr->item == item) {
             node_prev->next = node_next;
             queue->size--;
-            egosfree(node_curr);
+            grass->sys_egosfree(node_curr);
             queue_invariants(queue);
             return 0;
         }

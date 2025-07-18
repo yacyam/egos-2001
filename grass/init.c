@@ -71,6 +71,10 @@ void grass_entry() {
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
 
+    grass->sys_egosalloc = egosalloc;
+    grass->sys_egozalloc = egozalloc;
+    grass->sys_egosfree  = egosfree;
+
     /* create kernel data structures */
     if ((proc_set = list_new()) == EGOSNULL)
         FATAL("grass_entry: failed to create proc_set");

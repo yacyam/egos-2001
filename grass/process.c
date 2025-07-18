@@ -39,7 +39,7 @@ struct process *proc_pcb_find(queue_t queue, int pid) {
     return proc_found;
 }
 
-void proc_set_ready(struct process *proc) { 
+void proc_set_ready(struct process *proc) {
     if (queue_push(readyQ, proc) < 0)
         FATAL("proc_set_ready: failed to push proc %d onto readyQ", proc->pid);
 }

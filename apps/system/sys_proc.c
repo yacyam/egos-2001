@@ -87,13 +87,14 @@ static int app_spawn(struct proc_request* req) {
     if ((app_ino = dir_lookup(bin_ino, req->argv[0])) < 0) return CMD_ERROR;
     int argc = req->argv[req->argc - 1][0] == '&' ? req->argc - 1 : req->argc;
 
-    FATAL("app_spawn: spawning process");
-    // struct process *app = grass->proc_alloc();
-    // elf_load(app->pid, app_read, argc, (void**)req->argv);
-    // grass->proc_set_ready(app);
+    struct process *app = grass->proc_alloc();
+    CRITICAL("about back!");
+    elf_setup_user_proc_memory(app, app_ino, argc, (void**)req->argv);
+    SUCCESS("!!!!");
+    grass->proc_set_ready(app);
 
-    // app_pid = app->pid;
-    // return CMD_OK;
+    app_pid = app->pid;
+    return CMD_OK;
 }
 
 static int sys_apps_base;

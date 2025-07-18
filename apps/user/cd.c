@@ -9,6 +9,7 @@
 #include <string.h>
 
 int main(int argc, char** argv) {
+    FATAL("!!!");
     if (argc == 1) {
         int home_ino = dir_lookup(0, "home/");
         workdir_ino  = dir_lookup(home_ino, "yunhao/");

@@ -23,12 +23,34 @@ static uint __alloc_frame_and_map_page(struct process *proc, uint page, int perm
     return proc->pgtbl.tbl[page].frame_num;
 }
 
-// nothing is loaded in initially. on-demand paging!
+// nothing is loaded in initially (except for arguments). on-demand paging!
 void elf_setup_user_proc_memory(struct process *proc, uint ino, int argc, void **argv) {
-    FATAL("elf_setup_user_memory: unimplemented, proc=%d, ino=%d", proc->pid, ino);
+    char hbuf[BLOCK_SIZE], buf[BLOCK_SIZE];
+    uint frame;
+
+    file_read(ino, 0, hbuf);
+    struct elf32_header* header          = (void*)hbuf;
+    struct elf32_program_header* pheader = (void*)(hbuf + header->e_phoff);
+
+    for (int i = 1; i < header->e_phnum; i++) {
+        segment *prog_segment = grass->sys_egosalloc(sizeof(segment));
+        *prog_segment = (segment) {
+            .page_base = REAL_ADDR_TO_PAGE_NUM(pheader[i].p_vaddr),
+            .num_pages = ceiling(pheader[i].p_memsz, PAGE_SIZE), 
+            .perms_max = __convert_elf_flags_into_perms(pheader[i].p_flags),
+            // file stuff
+            .in_file = (pheader[i].p_filesz > 0),
+            .ino     = ino, 
+            .offset  = pheader[i].p_offset / BLOCK_SIZE
+        };
+
+        list_append(proc->segtbl.segments, prog_segment);
+    }
+
+    // TODO: Setup ARGC/ARGV
 }
 
-// kernel processes cannot experience "page faults", so don't set up
+// kernel processes cannot experience "page faults", so don't need to set up
 // segment table, and load in entire memory (map all pages)
 void elf_setup_kernel_proc_memory(struct process *proc, elf_reader reader) {
     /* Load the ELF header. */

@@ -34,9 +34,9 @@ typedef struct _pseudopgtbl {
 // permission allowed on any page in the segment.
 // some examples include: code, data, heap, stack
 typedef struct _segment {
-    uint address, size, perms_max;
-    int ino;
-    uint offset;
+    uint page_base, num_pages, perms_max;
+    int in_file;
+    uint ino, offset;
 } segment;
 
 // a segment table is a collection of segments

@@ -28,11 +28,11 @@ struct grass {
 
     void (*sys_send)(int receiver, char* msg, uint size);
     void (*sys_recv)(int from, int* sender, char* buf, uint size);
-    /* Student's code goes here (System Call | Multicore & Locks). */
-
-    /* Add interface functions for process sleep and multicore information. */
-
-    /* Student's code ends here. */
+    
+    // so sys-proc uses the same version of egosalloc as the kernel
+    void *(*sys_egosalloc)(uint size);
+    void *(*sys_egozalloc)(uint size);
+    void (*sys_egosfree)(void *ptr);
 };
 
 extern struct earth* earth;
@@ -80,6 +80,8 @@ extern struct grass* grass;
 #define REAL_ADDR_TRUNC_OFFSET(addr) ((addr >> PAGE_NBITS))
 
 /* Below are some common macros/declarations for I/O, multicore and printing. */
+static inline int ceiling(int num, int den) { return (num + den - 1) / den; }
+
 #define ACCESS(x)          (*(__typeof__(*x) volatile*)(x))
 #define REGW(base, offset) (ACCESS((uint*)(base + offset)))
 #define REGB(base, offset) (ACCESS((uchar*)(base + offset)))

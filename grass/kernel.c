@@ -97,7 +97,6 @@ static void excp_entry(uint id) {
 }
 
 static void intr_entry(uint id) {
-    FATAL("intr %d", id);
     if (id == INTR_ID_TIMER) { proc_yield(runQ); return; }
     
     FATAL("intr_entry: proc %d got unknown id %d", proc_curr->pid, id);
