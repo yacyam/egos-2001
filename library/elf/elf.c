@@ -44,10 +44,13 @@ void elf_setup_user_proc_memory(struct process *proc, uint ino, int argc, void *
             .offset  = pheader[i].p_offset / BLOCK_SIZE
         };
 
+        INFO("setup proc %d: base=%d, num_pages=%d, perms=%x, ino=%d, offset=%d", \
+            proc->pid, prog_segment->page_base, prog_segment->num_pages, prog_segment->perms_max, prog_segment->ino, prog_segment->offset);
+
         list_append(proc->segtbl.segments, prog_segment);
     }
 
-    // TODO: Setup ARGC/ARGV
+    // TODO: Setup STACK!! and ARGC/ARGV (at end of stack)
 }
 
 // kernel processes cannot experience "page faults", so don't need to set up
@@ -82,8 +85,8 @@ void elf_setup_kernel_proc_memory(struct process *proc, elf_reader reader) {
         }
     }
 
-    // setup 16 pages for stack
-    uint page_stack_base = REAL_ADDR_TO_PAGE_NUM(APPS_ARG);
+    // setup 6 pages for stack
+    uint page_stack_base = REAL_ADDR_TO_PAGE_NUM(APPS_STACK_BASE);
     while (page_stack_base < REAL_ADDR_TO_PAGE_NUM(APPS_STACK_TOP)) {
         frame = __alloc_frame_and_map_page(proc, page_stack_base++, PERMS_RW);
         memset((void*)FRAME_NUM_TO_REAL_ADDR(frame), 0, PAGE_SIZE);

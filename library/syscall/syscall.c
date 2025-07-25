@@ -25,3 +25,12 @@ void sys_recv(int from, int* sender, char* buf, uint size) {
     memcpy(buf, sc->content, size);
     if (sender) *sender = sc->sender;
 }
+
+void sys_rpc(int receiver, char *buf, uint size) {
+    sc->type     = SYS_RPC;
+    sc->receiver = receiver;
+    sc->sender   = receiver; // receiver will send response back
+    memcpy(sc->content, buf, size);
+    asm("ecall");
+    memcpy(buf, sc->content, size);
+}

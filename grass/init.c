@@ -70,6 +70,7 @@ void grass_entry() {
     grass->proc_set_ready = proc_set_ready;
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
+    grass->sys_rpc        = sys_rpc;
 
     grass->sys_egosalloc = egosalloc;
     grass->sys_egozalloc = egozalloc;

@@ -14,9 +14,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define PAGE_NO_TO_ADDR(x)     (char*)(x * PAGE_SIZE)
-#define COREMAP_IDX_TO_ADDR(x) ((char*)APPS_FRAMES_BASE + x * PAGE_SIZE)
-#define APPS_FRAMES_CNT        (RAM_END - APPS_FRAMES_BASE) / PAGE_SIZE
+#define APPS_FRAMES_CNT (RAM_END - APPS_FRAMES_BASE) / PAGE_SIZE
 
 // maintains metadata on each physical frame in memory
 coremap_entry coremap[APPS_FRAMES_CNT];
@@ -31,42 +29,14 @@ int frame_alloc() {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define NUM_PMPSLOTS         NUM_PAGES
-#define NUM_PMPSLOTS_PER_REG 4
-
-#define PMPCFG_START         0x3A0
-#define PMPADDR_START        0x3B0
-
-#define PMP_34BIT_CONVERT()
-
-/**
- * lifted from https://github.com/ultraembedded/FPGAmp/blob/master/firmware/arch/riscv/csr.h#L45
- * 
- * reg: integer address of CSR
- * val: value to place inside CSR
- */
-#define csr_write(reg, val) ({ \
-  asm volatile ("csrw " #reg ", %0" :: "rK"(val)); })
-
-void _pmp_addr_set(uint idx) {
-    if (idx >= NUM_PMPSLOTS)
-        FATAL("_pmp_addr_set: pmp slot %d is out of range of %d slots", idx, NUM_PMPSLOTS);
-
-    FATAL("_pmp_addr_set: unimplemented");
-}
-
-void _pmp_cfg_set(uint idx, uint perms) {
-    if (idx >= NUM_PMPSLOTS)
-        FATAL("_pmp_cfg_set: attempting to set pmp slot %d which is out of \
-            range for %d slots", idx, NUM_PMPSLOTS);
-    
-    FATAL("_pmp_cfg_set: unimplemented");
-}
-
 void _pmp_init() {
-    for (int i = 0; i < NUM_PMPSLOTS; i++) {
-        _pmp_addr_set(i);
-        _pmp_cfg_set(i, PERMS_NONE);
+    // map every page in a process' memory with no perms
+    for (int page = 0; page < NUM_PAGES; page++) {
+        uint addr_from_page_as_napot = PMP_34BIT_CONVERT(
+            PAGE_NUM_TO_REAL_ADDR(page) | ((PAGE_SIZE - 1) >> 1)
+        );
+        _pmp_addr_write(page, addr_from_page_as_napot);
+        _pmp_cfg_set(page, PMP_REGION_NAPOT | PERMS_NONE);
     }
 }
 
@@ -102,9 +72,18 @@ void ppt_switch(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new) {
     }
 
     for (uint page = 0; page < NUM_PAGES; page++) {
-        if (pgtbl_new->tbl[page].present)
+        if (pgtbl_new->tbl[page].present) {
             memcpy((void*)PAGE_NUM_TO_REAL_ADDR(page), \
                 (void*)FRAME_NUM_TO_REAL_ADDR(pgtbl_new->tbl[page].frame_num), PAGE_SIZE);
+
+            if (pgtbl_new->tbl[page].perms >= 0b111)
+                FATAL("ppt_switch: perms %x invalid", pgtbl_new->tbl[page].perms);
+
+            _pmp_cfg_set(page, pgtbl_new->tbl[page].perms);
+        }
+        else {
+            _pmp_cfg_set(page, PMP_REGION_NAPOT | PERMS_NONE);
+        }
     }
 }
 
@@ -118,6 +97,5 @@ void mmu_init() {
     earth->mmu_unmap  = ppt_unmap;
     earth->mmu_switch = ppt_switch;
 
-    // TODO: finish initializing PMP registers
-    //_pmp_init();
+    _pmp_init();
 }

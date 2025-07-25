@@ -44,12 +44,10 @@ void proc_switch_aftermath() {
 void ctx_entry() {
     proc_switch_aftermath();
 
-    if (proc_curr->pid >= GPID_USER_START)
-        FATAL("ctx_entry: set up user process mstatus");
-
+    uint mode = (proc_curr->pid < GPID_USER_START) ? 3 : 0;
     uint mstatus;
     asm("csrr %0, mstatus" : "=r"(mstatus));
-    mstatus = (mstatus & ~(3 << 11)) | (3 << 11);
+    mstatus = (mstatus & ~(3 << 11)) | (mode << 11);
     asm("csrw mstatus, %0" ::"r"(mstatus));
 
     // simulate an interrupt (could clear out other regs but i am lazy).
@@ -76,21 +74,76 @@ void kernel_entry() {
 }
 
 #define INTR_ID_TIMER   7
+
 #define EXCP_ID_ECALL_U 8
 #define EXCP_ID_ECALL_M 11
+
 static void proc_yield(queue_t queue);
 static void proc_try_syscall();
 
-static void excp_entry(uint id) {
-    uint mepc;
-    asm("csrr %0, mepc":"=r"(mepc));
+static void _excp_find_seg_contain_fault(void *seg, void *reason_fault) {
+    segment *segment = seg;
+    ppagefault_reason *reason = reason_fault;
+    uint perms_of_fault = _convert_excp_id_to_perms(reason->excp_id);
 
+    if (reason->page_num < segment->page_base || \
+            reason->page_num > segment->page_base + segment->num_pages) {
+        return;
+    }
+    if ((perms_of_fault & segment->perms_max) != perms_of_fault) {
+        FATAL("_excp_find_seg_containing_fault: segment at page=%d contains fault, but access=%x violates perms=%x", \
+            segment->page_base, perms_of_fault, segment->perms_max);
+    }
+
+    reason->seg_containing_fault = segment;
+}
+
+static void _excp_map_and_load_frame(ppagefault_reason *reason) {
+    if (reason->seg_containing_fault == EGOSNULL) FATAL("_excp_map_and_load_frame: proc=%x on page=%x should have obtained segfault", proc_curr->pid, reason->page_num);
+    if (reason->page_num >= NUM_PAGES) FATAL("_excp_map_and_load_frame: page=%x too big", reason->page_num);
+    
+    if (proc_curr->pgtbl.tbl[reason->page_num].present) {
+        FATAL("_excp_map_and_load_frame: present case (COW)");
+    } else {
+        // alloc frame, map it, load it by messaging file server (or zero-initializing)
+        uint frame_num = earth->mmu_alloc();
+        uint perms = reason->seg_containing_fault->perms_max;
+        FATAL("_excp_map_and_load_frame: map frame=%x with perms=%x to page=%x", frame_num, perms, reason->page_num);
+        //earth->mmu_map(&proc_curr->pgtbl.tbl[reason->page_num], frame_num, );
+    }
+}
+
+static void excp_entry(uint id) {
+    // system call handling
     if (id == EXCP_ID_ECALL_U || id == EXCP_ID_ECALL_M) {
         proc_curr->mepc += 4;
         memcpy(&proc_curr->syscall, (void*)SYSCALL_ARG, sizeof(struct syscall));
         proc_try_syscall();
         proc_yield(runQ);
         return;
+    }
+
+    // pseudo-page-fault handling
+    if (id == EXCP_ID_FAULT_R || id == EXCP_ID_FAULT_W || id == EXCP_ID_FAULT_X) {
+        // obtain the page number where the fault occurred 
+        // (mepc for eXecute fault, mtval for rest)
+        uint address_fault = proc_curr->mepc;
+        if (id != EXCP_ID_FAULT_X)
+            asm("csrr %0, mtval":"=r"(address_fault));
+
+        ppagefault_reason reason = (ppagefault_reason) {
+            .page_num = REAL_ADDR_TO_PAGE_NUM(address_fault),
+            .excp_id  = id,
+            .seg_containing_fault = EGOSNULL
+        };
+        
+        // find the segment containing the fault (segfault if not found)
+        list_iterate(proc_curr->segtbl.segments, _excp_find_seg_contain_fault, &reason);
+        if (reason.seg_containing_fault == EGOSNULL)
+            FATAL("excp_entry: segmentation fault on proc=%d and addr=%x, mepc=%x", proc_curr->pid, address_fault, proc_curr->mepc);
+
+        _excp_map_and_load_frame(&reason);
+        FATAL("excp_entry: finished");
     }
 
     FATAL("excp_entry: proc %d got unknown id %d, mepc %x", proc_curr->pid, id, proc_curr->mepc);
@@ -174,6 +227,11 @@ static void proc_try_recv() {
     memcpy(sc->content, sender->syscall.content, SYSCALL_MSG_LEN);
 }
 
+static void proc_try_rpc() {
+    proc_try_send();
+    proc_try_recv();
+}
+
 static void proc_try_syscall() {
     switch (proc_curr->syscall.type) {
         case SYS_SEND:
@@ -181,6 +239,9 @@ static void proc_try_syscall() {
             break;
         case SYS_RECV:
             proc_try_recv();
+            break;
+        case SYS_RPC:
+            proc_try_rpc();
             break;
         default:
             FATAL("proc_try_syscall: proc %d attempt unknown syscall type %d", \

@@ -88,9 +88,7 @@ static int app_spawn(struct proc_request* req) {
     int argc = req->argv[req->argc - 1][0] == '&' ? req->argc - 1 : req->argc;
 
     struct process *app = grass->proc_alloc();
-    CRITICAL("about back!");
     elf_setup_user_proc_memory(app, app_ino, argc, (void**)req->argv);
-    SUCCESS("!!!!");
     grass->proc_set_ready(app);
 
     app_pid = app->pid;

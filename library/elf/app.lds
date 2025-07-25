@@ -5,9 +5,9 @@ ENTRY(app_entry)
 MEMORY
 {
     code (rx) : ORIGIN = 0x80400000, LENGTH = 0x4000
-    data (rw) : ORIGIN = 0x80404000, LENGTH = 0x4000
-    bss  (rw) : ORIGIN = 0x80408000, LENGTH = 0x4000
-    heap (rw) : ORIGIN = 0x8040C000, LENGTH = 0x4000
+    data (rw) : ORIGIN = 0x80404000, LENGTH = 0x2000
+    bss  (rw) : ORIGIN = 0x80406000, LENGTH = 0x2000
+    heap (rw) : ORIGIN = 0x80408000, LENGTH = 0x2000
 }
 
 PHDRS
@@ -45,7 +45,7 @@ SECTIONS
 
     .heap (NOLOAD) : ALIGN(8) {
           PROVIDE( __heap_start = . );
-          . += 0x4000;
+          . += 0x2000;
     } >heap : heap
 
     PROVIDE( __heap_end = . );

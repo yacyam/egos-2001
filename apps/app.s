@@ -10,6 +10,6 @@
 app_entry:
     /* a0 holds the address of argc; See kernel.c for details. */
     lw a0, 0(a0)
-    li sp,0x80440000
+    li sp,0x80410000
     call main
     call exit

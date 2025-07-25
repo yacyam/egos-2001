@@ -28,6 +28,7 @@ struct grass {
 
     void (*sys_send)(int receiver, char* msg, uint size);
     void (*sys_recv)(int from, int* sender, char* buf, uint size);
+    void (*sys_rpc)(int receiver, char *buf, uint size);
     
     // so sys-proc uses the same version of egosalloc as the kernel
     void *(*sys_egosalloc)(uint size);
@@ -45,12 +46,13 @@ extern struct grass* grass;
 #define APPS_FRAMES_BASE  0x80800000 /* 8MB free for mmu_alloc              */
 
 // end of app pages
-#define APPS_STACK_TOP    0x80440000 /* 64KB app stack (growing down)        */
-#define SHELL_WORK_DIR    0x80432000 /* current work directory for shell    */
-#define SYSCALL_ARG       0x80431000 /* struct syscall                      */
-#define APPS_ARG          0x80430000 /* main() arguments (argc and argv)    */
-// 128 KB hole (0x80410000 to 0x80430000)
-#define APPS_ENTRY        0x80400000 /* 64KB app code and data              */
+#define APPS_STACK_TOP    0x80410000 /* 6 page app stack (growing down)     */
+#define SYSCALL_ARG       0x8040B000 /* struct syscall                      */
+#define APPS_ARG          0x8040A020 /* main() arguments (argc and argv)    */
+#define SHELL_WORK_DIR    0x8040A000 /* current work directory for shell    */
+#define APPS_STACK_BASE   0x8040A000
+
+#define APPS_ENTRY        0x80400000 /* 10 pages of app code + data + heap  */
 // start of app pages
 
 #define BOOT_STACK_TOP    0x80400000 /* 2MB boot stack (growing down)       */
