@@ -68,15 +68,14 @@ static void proc_try_syscall();
 static void _excp_find_seg_contain_fault(void *seg, void *reason_fault) {
     segment *segment = seg;
     ppagefault_reason *reason = reason_fault;
-    uint perms_of_fault = _convert_excp_id_to_perms(reason->excp_id);
 
     if (reason->page_num < segment->page_base || \
             reason->page_num >= segment->page_base + segment->num_pages) {
         return;
     }
-    if ((perms_of_fault & segment->perms_max) != perms_of_fault) {
+    if ((reason->perms_fault & segment->perms_max) != reason->perms_fault) {
         FATAL("_excp_find_seg_containing_fault: segment at page=%d contains fault, but access=%x violates perms=%x", \
-            segment->page_base, perms_of_fault, segment->perms_max);
+            segment->page_base, reason->perms_fault, segment->perms_max);
     }
 
     reason->seg_containing_fault = segment;
@@ -92,7 +91,9 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
         // alloc frame, map it, load it by messaging file server (or zero-initializing)
         uint frame_num = earth->mmu_alloc();
         uint perms = reason->seg_containing_fault->perms_max;
-        earth->mmu_map(&proc_curr->pgtbl.tbl[reason->page_num], frame_num, perms);
+        uint page_num_fault = reason->page_num;
+
+        earth->mmu_map(&proc_curr->pgtbl.tbl[page_num_fault], frame_num, perms);
 
         if (reason->seg_containing_fault->in_file) {
             // CANT call file_read here (think about it).
@@ -100,7 +101,8 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
 
             // offset of segment in file + offset of page inside segment
             SUCCESS("mapped page=%x to frame=%x with perms=%x", reason->page_num, frame_num, perms);
-            uint off_block = reason->seg_containing_fault->offset + (reason->page_num * BLOCKS_PER_PAGE);
+            uint off_block = reason->seg_containing_fault->offset + \
+                ((reason->page_num - reason->seg_containing_fault->page_base) * BLOCKS_PER_PAGE);
             CRITICAL("begin reading from offset=%x into file", off_block);
 
             // read every block that comprises the page
@@ -119,13 +121,33 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
                 proc_try_syscall();
                 INFO("Back from syscall. need to convert to file_reply");
                 struct file_reply *reply = (struct file_reply *)proc_curr->syscall.content;
-                memcpy((void*)(FRAME_NUM_TO_REAL_ADDR(frame_num)), reply->block.bytes, BLOCK_SIZE);
+                if (reply->status == FILE_ERROR)
+                    continue;
+
+                // synchronize both
+                memcpy((void*)(PAGE_NUM_TO_REAL_ADDR(page_num_fault) + (i * BLOCK_SIZE)), reply->block.bytes, BLOCK_SIZE);
+                memcpy((void*)(FRAME_NUM_TO_REAL_ADDR(frame_num) + (i * BLOCK_SIZE)), reply->block.bytes, BLOCK_SIZE);
             }
             
         } else {
-            FATAL("_excp_map_and_load_frame: memory segment fault. proc=%x, page=%x, %x", proc_curr->pid, reason->page_num, reason->seg_containing_fault->page_base);
+            SUCCESS("MEMORY: mapped page=%x to frame=%x with perms=%x", reason->page_num, frame_num, perms);
+            memset((void*)FRAME_NUM_TO_REAL_ADDR(frame_num), 0, PAGE_SIZE);
         }
     }
+}
+
+static void _ppagefaulthandler(uint page_num, uint perms_fault) {
+    ppagefault_reason reason = (ppagefault_reason) {
+        .page_num = page_num, .perms_fault = perms_fault,
+        .seg_containing_fault = EGOSNULL
+    };
+    
+    // find the segment containing the fault (segfault if not found)
+    list_iterate(proc_curr->segtbl.segments, _excp_find_seg_contain_fault, &reason);
+    if (reason.seg_containing_fault == EGOSNULL)
+        FATAL("_ppagefaulthandler: segmentation fault on proc=%d and page=%x, mepc=%x", proc_curr->pid, page_num, proc_curr->mepc);
+
+    _excp_map_and_load_frame(&reason);
 }
 
 static void excp_entry(uint id) {
@@ -140,24 +162,16 @@ static void excp_entry(uint id) {
 
     // pseudo-page-fault handling
     if (id == EXCP_ID_FAULT_R || id == EXCP_ID_FAULT_W || id == EXCP_ID_FAULT_X) {
+        uint mtval;
+        asm("csrr %0, mtval":"=r"(mtval));
+        CRITICAL("excp_entry: process=%x experienced %d fault at pc=%x, mtval=%x", proc_curr->pid, id, proc_curr->mepc, mtval);
         // obtain the page number where the fault occurred 
         // (mepc for eXecute fault, mtval for rest)
         uint address_fault = proc_curr->mepc;
         if (id != EXCP_ID_FAULT_X)
             asm("csrr %0, mtval":"=r"(address_fault));
 
-        ppagefault_reason reason = (ppagefault_reason) {
-            .page_num = REAL_ADDR_TO_PAGE_NUM(address_fault),
-            .excp_id  = id,
-            .seg_containing_fault = EGOSNULL
-        };
-        
-        // find the segment containing the fault (segfault if not found)
-        list_iterate(proc_curr->segtbl.segments, _excp_find_seg_contain_fault, &reason);
-        if (reason.seg_containing_fault == EGOSNULL)
-            FATAL("excp_entry: segmentation fault on proc=%d and addr=%x, mepc=%x", proc_curr->pid, address_fault, proc_curr->mepc);
-
-        _excp_map_and_load_frame(&reason);
+        _ppagefaulthandler(REAL_ADDR_TO_PAGE_NUM(address_fault), _convert_excp_id_to_perms(id));
         proc_yield(runQ);
         return;
     }
@@ -237,10 +251,12 @@ static void proc_try_recv() {
     // make sender runnable
     queue_push(runQ, sender);
 
-    // transfer message from sender's PCB to receiver's userspace msg buffer
+    // transfer message from sender's PCB to receiver's PCB and userspace msg buffer
+    memcpy(proc_curr->syscall.content, sender->syscall.content, SYSCALL_MSG_LEN);
+    proc_curr->syscall.sender = sender->pid;
+
     struct syscall *sc = (void*)SYSCALL_ARG;
-    sc->sender = sender->pid;
-    memcpy(sc->content, sender->syscall.content, SYSCALL_MSG_LEN);
+    memcpy(sc, &proc_curr->syscall, sizeof(struct syscall));
 }
 
 static void proc_try_rpc() {

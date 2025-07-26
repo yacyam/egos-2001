@@ -31,6 +31,7 @@ int main() {
 
         switch (req->type) {
         case FILE_READ:
+            CRITICAL("result of ino=%x, block=%x", req->ino, req->offset);
             r = fs->read(fs, req->ino, req->offset, (void*)&reply->block);
             reply->status = r == 0 ? FILE_OK : FILE_ERROR;
             grass->sys_send(sender, (void*)reply, sizeof(*reply));

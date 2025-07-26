@@ -28,11 +28,16 @@ void elf_setup_user_proc_memory(struct process *proc, uint ino, int argc, void *
     char hbuf[BLOCK_SIZE], buf[BLOCK_SIZE];
     uint frame;
 
+    SUCCESS("elf: start");
     file_read(ino, 0, hbuf);
+    SUCCESS("elf: back");
     struct elf32_header* header          = (void*)hbuf;
     struct elf32_program_header* pheader = (void*)(hbuf + header->e_phoff);
 
     for (int i = 1; i < header->e_phnum; i++) {
+        if (!pheader[i].p_memsz)
+            continue;
+
         segment *prog_segment = grass->sys_egosalloc(sizeof(segment));
         *prog_segment = (segment) {
             .page_base = REAL_ADDR_TO_PAGE_NUM(pheader[i].p_vaddr),
@@ -44,13 +49,28 @@ void elf_setup_user_proc_memory(struct process *proc, uint ino, int argc, void *
             .offset  = pheader[i].p_offset / BLOCK_SIZE
         };
 
-        INFO("setup proc %d: base=%d, num_pages=%d, perms=%x, ino=%d, offset=%d", \
-            proc->pid, prog_segment->page_base, prog_segment->num_pages, prog_segment->perms_max, prog_segment->ino, prog_segment->offset);
+        INFO("setup proc %d: vaddr=%x, base=%d, num_pages=%d, perms=%x, ino=%d, offset=%d", \
+            proc->pid, pheader[i].p_vaddr, prog_segment->page_base, prog_segment->num_pages, prog_segment->perms_max, prog_segment->ino, prog_segment->offset);
 
         list_append(proc->segtbl.segments, prog_segment);
     }
 
     // TODO: Setup STACK!! and ARGC/ARGV (at end of stack)
+
+    // handles userspace copying of syscall arguments nicely
+    __alloc_frame_and_map_page(proc, REAL_ADDR_TO_PAGE_NUM(SYSCALL_ARG), PERMS_RW);
+
+    // set up one page for APPS_ARGS (not fully on-demand)
+    //uint frame = __alloc_frame_and_map_page(proc, REAL_ADDR_TO_PAGE_NUM(APPS_STACK_BASE), PERMS_RW);
+
+    segment *prog_segment = grass->sys_egosalloc(sizeof(segment));
+    *prog_segment = (segment) {
+        .page_base = REAL_ADDR_TO_PAGE_NUM(APPS_STACK_BASE),
+        .num_pages = (APPS_STACK_TOP - APPS_STACK_BASE) / PAGE_SIZE,
+        .perms_max = PERMS_RW,
+        .in_file = egosfalse
+    };
+    list_append(proc->segtbl.segments, prog_segment);
 }
 
 // kernel processes cannot experience "page faults", so don't need to set up

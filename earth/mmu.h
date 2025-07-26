@@ -53,7 +53,7 @@ typedef struct _pseudopgtbl {
 } pseudopgtbl;
 
 typedef struct _ppagefault_reason {
-    uint page_num, excp_id;
+    uint page_num, perms_fault;
     segment *seg_containing_fault;
 } ppagefault_reason;
 
