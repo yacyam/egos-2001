@@ -6,6 +6,7 @@
 #define PAGE_SIZE    4096
 #define PAGE_NBITS   12
 #define NUM_PAGES    16 // size of process' address space
+#define BLOCKS_PER_PAGE (PAGE_SIZE / BLOCK_SIZE)
 
 #define PERMS_RWX  0b111
 #define PERMS_RO   0b001

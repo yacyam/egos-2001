@@ -9,7 +9,7 @@
 
 struct process {
     int pid;
-    uint mepc;
+    uint mepc, mstatus;
     struct syscall syscall;
     queue_t senderQ;  // queue of processes that want to send a message to this process
     queue_t msgwaitQ; // temporary place that a receiver can wait in until they get msg
@@ -24,5 +24,6 @@ ulonglong mtime_get();
 
 struct process *proc_alloc();
 struct process *proc_pcb_find(queue_t, int);
+void proc_simulate_interrupt(struct process *);
 void proc_set_ready(struct process *);
 void proc_free(int);

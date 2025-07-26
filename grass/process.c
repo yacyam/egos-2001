@@ -12,6 +12,26 @@ extern list_t proc_set;
 extern queue_t runQ;
 extern queue_t readyQ;
 
+/**
+ * __proc_simulate_an_interrupt: set up hardware registers and MRET for newly
+ * scheduled process (seems as if their registers were saved on a trap)
+ */
+void proc_simulate_interrupt(struct process *proc_new) {
+    uint mode = (proc_new->pid < GPID_USER_START) ? 3 : 0;
+    uint mstatus;
+    asm("csrr %0, mstatus" : "=r"(mstatus));
+    proc_new->mstatus = (mstatus & ~(3 << 11)) | (mode << 11);
+    
+    // simulate an interrupt (could clear out other regs but i am lazy).
+    // app.s sets the stack pointer
+    asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
+    asm("csrw mscratch, %0"::"r"(proc_new->ksp));
+    asm("csrw mstatus, %0" ::"r"(proc_new->mstatus));
+    asm("mv a0, %0" ::"r"(APPS_ARG));     // address of argc
+    asm("mv a1, %0" ::"r"(APPS_ARG + 4)); // argv
+    asm("mret");
+}
+
 struct process *proc_found;
 /**
  * __proc_pcb_find_enumerate: will cast `item` into a process, and will set

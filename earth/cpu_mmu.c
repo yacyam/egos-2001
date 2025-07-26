@@ -79,7 +79,7 @@ void ppt_switch(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new) {
             if (pgtbl_new->tbl[page].perms >= 0b111)
                 FATAL("ppt_switch: perms %x invalid", pgtbl_new->tbl[page].perms);
 
-            _pmp_cfg_set(page, pgtbl_new->tbl[page].perms);
+            _pmp_cfg_set(page, PMP_REGION_NAPOT | pgtbl_new->tbl[page].perms);
         }
         else {
             _pmp_cfg_set(page, PMP_REGION_NAPOT | PERMS_NONE);

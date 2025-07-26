@@ -91,17 +91,5 @@ void grass_entry() {
     elf_setup_kernel_proc_memory(proc_curr, sys_proc_read);
     earth->mmu_switch(EGOSNULL, &proc_curr->pgtbl);
     
-    uint mstatus, M_MODE = 3, U_MODE = 0;
-    uint GRASS_MODE = M_MODE;
-    asm("csrr %0, mstatus" : "=r"(mstatus));
-    mstatus = (mstatus & ~(3 << 11)) | (GRASS_MODE << 11);
-    asm("csrw mstatus, %0" ::"r"(mstatus));
-
-    asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
-    asm("csrw mscratch, %0"::"r"(proc_curr->ksp)); // for kernel stack switch on trap entry
-    asm("mv a0, %0" ::"r"(APPS_ARG));
-    asm("mv a1, %0" ::"r"(&boot_lock));
-    asm("mret");
-    /* If using page table translation, the CPU will enter the user mode after
-     * this mret and thus page table translation will start to take effect. */
+    proc_simulate_interrupt(proc_curr); // this is where the world begins
 }

@@ -36,27 +36,9 @@ void proc_switch_aftermath() {
     earth->timer_reset(core_in_kernel);
 }
 
-/**
- * ctx_entry: simulate an interrupt, and return from interrupt to newly
- * scheduled process. This function is called on the kernel stack of the newly
- * created process (although the SP could also in essence be the boot/trap stack)
- */
 void ctx_entry() {
     proc_switch_aftermath();
-
-    uint mode = (proc_curr->pid < GPID_USER_START) ? 3 : 0;
-    uint mstatus;
-    asm("csrr %0, mstatus" : "=r"(mstatus));
-    mstatus = (mstatus & ~(3 << 11)) | (mode << 11);
-    asm("csrw mstatus, %0" ::"r"(mstatus));
-
-    // simulate an interrupt (could clear out other regs but i am lazy).
-    // app.s sets the stack pointer
-    asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
-    asm("csrw mscratch, %0"::"r"(proc_curr->ksp));
-    asm("mv a0, %0" ::"r"(APPS_ARG));     // address of argc
-    asm("mv a1, %0" ::"r"(APPS_ARG + 4)); // argv
-    asm("mret");
+    proc_simulate_interrupt(proc_curr);
 }
 
 static void intr_entry(uint);
@@ -65,11 +47,13 @@ static void excp_entry(uint);
 void kernel_entry() {
     asm("csrr %0, mhartid":"=r"(core_in_kernel));
     asm("csrr %0, mepc":"=r"(proc_curr->mepc));
+    asm("csrr %0, mstatus":"=r"(proc_curr->mstatus)); // unnecessary, but it may bite me in the future if i dont do it
 
     uint mcause;
     asm("csrr %0, mcause" : "=r"(mcause));
     (mcause & (1 << 31)) ? intr_entry(mcause & 0x3FF) : excp_entry(mcause);
 
+    asm("csrw mstatus, %0"::"r"(proc_curr->mstatus));
     asm("csrw mepc, %0"::"r"(proc_curr->mepc));
 }
 
@@ -87,7 +71,7 @@ static void _excp_find_seg_contain_fault(void *seg, void *reason_fault) {
     uint perms_of_fault = _convert_excp_id_to_perms(reason->excp_id);
 
     if (reason->page_num < segment->page_base || \
-            reason->page_num > segment->page_base + segment->num_pages) {
+            reason->page_num >= segment->page_base + segment->num_pages) {
         return;
     }
     if ((perms_of_fault & segment->perms_max) != perms_of_fault) {
@@ -103,13 +87,44 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
     if (reason->page_num >= NUM_PAGES) FATAL("_excp_map_and_load_frame: page=%x too big", reason->page_num);
     
     if (proc_curr->pgtbl.tbl[reason->page_num].present) {
-        FATAL("_excp_map_and_load_frame: present case (COW)");
+        FATAL("_excp_map_and_load_frame: present case (COW). proc=%x, page=%x", proc_curr->pid, reason->page_num);
     } else {
         // alloc frame, map it, load it by messaging file server (or zero-initializing)
         uint frame_num = earth->mmu_alloc();
         uint perms = reason->seg_containing_fault->perms_max;
-        FATAL("_excp_map_and_load_frame: map frame=%x with perms=%x to page=%x", frame_num, perms, reason->page_num);
-        //earth->mmu_map(&proc_curr->pgtbl.tbl[reason->page_num], frame_num, );
+        earth->mmu_map(&proc_curr->pgtbl.tbl[reason->page_num], frame_num, perms);
+
+        if (reason->seg_containing_fault->in_file) {
+            // CANT call file_read here (think about it).
+            // convert faulting page num to block offset to read ELF of process
+
+            // offset of segment in file + offset of page inside segment
+            SUCCESS("mapped page=%x to frame=%x with perms=%x", reason->page_num, frame_num, perms);
+            uint off_block = reason->seg_containing_fault->offset + (reason->page_num * BLOCKS_PER_PAGE);
+            CRITICAL("begin reading from offset=%x into file", off_block);
+
+            // read every block that comprises the page
+            for (int i = 0; i < BLOCKS_PER_PAGE; i++) {
+                INFO("Reading block=%x", off_block);
+
+                struct file_request req = (struct file_request) { 
+                    .type = FILE_READ,
+                    .ino = reason->seg_containing_fault->ino, .offset = off_block++
+                };
+                proc_curr->syscall = (struct syscall) {
+                    .type = SYS_RPC, .receiver = GPID_FILE, .sender = GPID_FILE,
+                };
+                memcpy(proc_curr->syscall.content, &req, sizeof(req));
+                INFO("Copied request into syscall");
+                proc_try_syscall();
+                INFO("Back from syscall. need to convert to file_reply");
+                struct file_reply *reply = (struct file_reply *)proc_curr->syscall.content;
+                memcpy((void*)(FRAME_NUM_TO_REAL_ADDR(frame_num)), reply->block.bytes, BLOCK_SIZE);
+            }
+            
+        } else {
+            FATAL("_excp_map_and_load_frame: memory segment fault. proc=%x, page=%x, %x", proc_curr->pid, reason->page_num, reason->seg_containing_fault->page_base);
+        }
     }
 }
 
@@ -143,7 +158,8 @@ static void excp_entry(uint id) {
             FATAL("excp_entry: segmentation fault on proc=%d and addr=%x, mepc=%x", proc_curr->pid, address_fault, proc_curr->mepc);
 
         _excp_map_and_load_frame(&reason);
-        FATAL("excp_entry: finished");
+        proc_yield(runQ);
+        return;
     }
 
     FATAL("excp_entry: proc %d got unknown id %d, mepc %x", proc_curr->pid, id, proc_curr->mepc);
