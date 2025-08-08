@@ -31,6 +31,17 @@ void sleep(uint usec) {
     /* Student's code ends here. */
 }
 
+int fork() {
+    struct proc_request *req = (void*)buf;
+    struct proc_reply *reply = (void*)buf;
+
+    req->type = PROC_FORK;
+    sys_rpc(GPID_PROCESS, buf, sizeof(buf));
+    INFO("CHILDREN BACK!!! pid=%x", reply->pid);
+    
+    return (reply->type == CMD_OK) ? reply->pid : -1;
+}
+
 int dir_lookup(int dir_ino, char* name) {
     char buf[BLOCK_SIZE];
     file_read(dir_ino, 0, buf);

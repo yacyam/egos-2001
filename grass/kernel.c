@@ -23,7 +23,7 @@ list_t proc_set;
 queue_t runQ; // can be scheduled
 queue_t readyQ; // can be scheduled (for the first time)
 
-struct process *proc_curr, *proc_next;
+struct process * volatile proc_curr, * volatile proc_next;
 
 /**
  * proc_switch_aftermath: sets up kernel state after a process is switched to.
@@ -84,16 +84,47 @@ static void _excp_find_seg_contain_fault(void *seg, void *reason_fault) {
 static void _excp_map_and_load_frame(ppagefault_reason *reason) {
     if (reason->seg_containing_fault == EGOSNULL) FATAL("_excp_map_and_load_frame: proc=%x on page=%x should have obtained segfault", proc_curr->pid, reason->page_num);
     if (reason->page_num >= NUM_PAGES) FATAL("_excp_map_and_load_frame: page=%x too big", reason->page_num);
+
+    ppte *pte_fault = &proc_curr->pgtbl.tbl[reason->page_num];
     
-    if (proc_curr->pgtbl.tbl[reason->page_num].present) {
-        FATAL("_excp_map_and_load_frame: present case (COW). proc=%x, page=%x", proc_curr->pid, reason->page_num);
+    if (pte_fault->present) {
+        INFO("_excp_map_and_load_frame: present case (COW). proc=%x, page=%x", proc_curr->pid, reason->page_num);
+
+        if (reason->perms_fault != PERMS_WO) 
+            FATAL("_excp_map_and_load_frame: not a write-protec page fault");
+
+        switch (earth->mmu_refcnt(pte_fault->frame_num)) {
+        case 0:
+            FATAL("_excp_map_and_load_frame: proc=%d got refcnt=0 on frame=%x", 
+                proc_curr->pid, pte_fault->frame_num);
+            break;
+        case 1:
+            // upgrade perms of PTE to maximum inside segment
+            earth->mmu_map(
+                pte_fault, 
+                pte_fault->frame_num, 
+                reason->seg_containing_fault->perms_max
+            );
+            break;
+        default:
+            // Copy on write page fault:
+            // alloc frame -> copy contents -> map PTE to new frame
+            uint frame_copy = earth->mmu_alloc();
+            
+            // IMPORTANT: since page is write-protected, page and frame 
+            // already synced up (no need to update both)
+            memcpy((void*)FRAME_NUM_TO_REAL_ADDR(frame_copy), 
+                (void*)FRAME_NUM_TO_REAL_ADDR(pte_fault->frame_num), PAGE_SIZE);
+
+            earth->mmu_map(pte_fault, frame_copy, reason->seg_containing_fault->perms_max);
+        }
     } else {
         // alloc frame, map it, load it by messaging file server (or zero-initializing)
-        uint frame_num = earth->mmu_alloc();
         uint perms = reason->seg_containing_fault->perms_max;
         uint page_num_fault = reason->page_num;
-
-        earth->mmu_map(&proc_curr->pgtbl.tbl[page_num_fault], frame_num, perms);
+        
+        uint frame_num = earth->mmu_alloc();
+        earth->mmu_map(pte_fault, frame_num, perms);
 
         if (reason->seg_containing_fault->in_file) {
             // CANT call file_read here (think about it).
@@ -218,7 +249,7 @@ static void msg_notify(struct process *recipient) {
 /* * * * * * * */
 
 static void proc_try_send() {
-    struct process *receiver = proc_pcb_find(proc_set, proc_curr->syscall.receiver);
+    struct process *receiver = _proc_pcb_find(proc_set, proc_curr->syscall.receiver);
     msg_notify(receiver);
     proc_yield(receiver->senderQ);
 }
@@ -229,15 +260,15 @@ static void proc_try_recv() {
         msg_wait();
 
     // attempt to find the desired sender from our senderQ
-    struct process *sender;
-    int sender_pid = proc_curr->syscall.sender;
+    struct process * volatile sender;
+    int volatile sender_pid = proc_curr->syscall.sender;
 
     if (sender_pid == GPID_ALL) {
         // take head of sendQ as the process that successfully sends to us
         queue_pop(proc_curr->senderQ, (void**)&sender);
     } else {
         // wait until desired sender is on our senderQ, then delete
-        while ((sender = proc_pcb_find(proc_curr->senderQ, sender_pid)) == EGOSNULL)
+        while ((sender = _proc_pcb_find(proc_curr->senderQ, sender_pid)) == EGOSNULL)
             msg_wait();
         queue_delete(proc_curr->senderQ, sender);
     }

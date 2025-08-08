@@ -27,6 +27,12 @@ int frame_alloc() {
     FATAL("frame_alloc: no more free frames");
 }
 
+uint frame_refcnt(uint frame) {
+    if (frame >= APPS_FRAMES_CNT)
+        FATAL("frame_refcnt: frame=%x too large", frame);
+    return coremap[frame].refcnt;
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 void _pmp_init() {
@@ -50,8 +56,9 @@ void ppt_unmap(ppte *pte) {
 }
 
 void ppt_map(ppte *pte, uint frame_num, int perms) {
-    if (pte->present) FATAL("ppt_map: handle present case");
     if (frame_num >= APPS_FRAMES_CNT) FATAL("ppt_map: frame %x too large", frame_num);
+    if (pte->present) 
+        ppt_unmap(pte);
 
     *pte = (ppte) {
         .frame_num = frame_num,
@@ -62,7 +69,7 @@ void ppt_map(ppte *pte, uint frame_num, int perms) {
 
 void ppt_switch(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new) {
     if (pgtbl_new == EGOSNULL)
-        FATAL("????");
+        FATAL("ppt_switch: cannot switch to NULL page table");
 
     /** TODO: set up pmp registers */
     for (uint page = 0; page < NUM_PAGES; page++) {
@@ -93,6 +100,8 @@ void mmu_init() {
     // ptmap, ptunmap, ptswitch
     // frame_alloc
     earth->mmu_alloc  = frame_alloc;
+    earth->mmu_refcnt = frame_refcnt;
+
     earth->mmu_map    = ppt_map;
     earth->mmu_unmap  = ppt_unmap;
     earth->mmu_switch = ppt_switch;

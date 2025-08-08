@@ -50,7 +50,7 @@ void __proc_pcb_find_enumerate(void *item, void *pid) {
  * proc_pcb_find: find a process (in the `queue`) that matches `pid`. 
  * Returns EGOSNULL if a process with pid equal to `pid` is not found in `queue`
  */
-struct process *proc_pcb_find(queue_t queue, int pid) {
+struct process *_proc_pcb_find(queue_t queue, int pid) {
     proc_found = EGOSNULL;
     queue_iterate(queue, __proc_pcb_find_enumerate, (void*)pid);
 
@@ -58,6 +58,14 @@ struct process *proc_pcb_find(queue_t queue, int pid) {
         FATAL("proc_pcb_find: found proc %d instead of %d", proc_found->pid, pid);
     return proc_found;
 }
+
+/**
+ * proc_set_get: get PCB of process from proc set
+ */
+struct process *proc_set_get(int pid) {
+    return _proc_pcb_find(proc_set, pid);
+}
+
 
 void proc_set_ready(struct process *proc) {
     if (queue_push(readyQ, proc) < 0)
@@ -104,7 +112,7 @@ void proc_free(int pid) {
     }
 
     struct process *proc_being_killed;
-    if ((proc_being_killed = proc_pcb_find(proc_set, pid)) == EGOSNULL)
+    if ((proc_being_killed = _proc_pcb_find(proc_set, pid)) == EGOSNULL)
         FATAL("proc_free: failed to find pcb of proc %d", pid);
 
     if (queue_length(proc_being_killed->senderQ) > 0)

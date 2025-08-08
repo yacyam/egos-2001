@@ -16,6 +16,13 @@ static int app_ino, app_pid;
 static void sys_spawn(uint base);
 static int app_spawn(struct proc_request* req);
 
+void _fork_copy_segment(void *segment_sender, void *segtbl_child) {
+    if (segment_sender == EGOSNULL || segtbl_child == EGOSNULL)
+        FATAL("sys_process: segtbl copy gone wrong");
+    if (queue_push(segtbl_child, segment_sender) < 0)
+        FATAL("sys_process: pushing segment onto segtbl of child failed");
+}
+
 struct multicore {
     int boot_lock, booted_core_cnt; /* See earth/boot.s */
 };
@@ -74,6 +81,72 @@ int main(int unused, struct multicore* boot) {
         /* Add a case which handles process sleep. */
 
         /* Student's code ends here. */
+
+        case PROC_FORK:
+            /**
+             * Workflow of Forking in EGOS-2000: Current Setup
+             * 
+             * A simple process model is <regs, memory, OS state>. Each should be copied.
+             * 
+             * sender's kernel stack [ regs | trap/kernel/excp_entry | syscall | rpc | send + recv ]
+             * 
+             * copying sender's kernel stack to child handles <regs> and some of <OS state>.
+             * Now need to also handle the fact that child will now send + recv once scheduled
+             * (more OS state management). Note that the senderQ of the sibling won't be copied
+             * to the child, as that would completely blow up the scheduler (think about why...). 
+             * But the segment table should be copied.
+             * 
+             * For memory, there are two approaches:
+             * 1. For each mapped page in sender's page table, alloc new frame and copy contents of page into child
+             * 2. Only copy the page table, but mark every PTE as read-only. Copy-on-write.
+             * 
+             * (2) is more optimal than (1) in terms of fork latency.
+             */
+
+            // get sender's PCB and alloc its child
+            struct process *pcb_sender = grass->proc_set_get(sender);
+            struct process *pcb_child  = grass->proc_alloc();  
+
+            // UPDATE: DOESNT WORK
+            // copy ENTIRE kernel stack + ksp + syscall (now child is also doing RPC)
+            //memcpy(pcb_child->kstack, pcb_sender->kstack, SIZE_KSTACK);
+            //memcpy(&pcb_child->syscall, &pcb_sender->syscall, sizeof(struct syscall));
+            //pcb_child->ksp = pcb_sender->ksp;
+
+            // copy mepc + mstatus (so child resumes at same point as sender)
+            pcb_child->mepc = pcb_sender->mepc;
+            pcb_child->mstatus = pcb_sender->mstatus;
+
+            // copy entire segment table
+            queue_iterate(pcb_sender->segtbl.segments, _fork_copy_segment, pcb_child->segtbl.segments);
+
+            // FOR NOW ASSUME sender is currently blocked waiting to recv a message 
+            // from GPID_PROC, and make child also block to recv a message
+            if (queue_length(pcb_sender->msgwaitQ) != 1)
+                FATAL("sys_process: sender has queue length=%d instead of 1", queue_length(pcb_sender->msgwaitQ));
+            
+            if (queue_push(pcb_child->msgwaitQ, pcb_child) < 0)
+                FATAL("sys_process: child failed to be pushed onto msgwaitQ");
+
+            // handle memory in COW fashion (write protect all pages in both address spaces)
+            for (int page = 0; page < NUM_PAGES; page++) {
+                if (pcb_sender->pgtbl.tbl[page].present) {
+                    // both sender and child should map same frames as RO
+                    uint frame_sender = pcb_sender->pgtbl.tbl[page].frame_num;
+                    // TODO: map with permissions of segment
+                    earth->mmu_map(&pcb_sender->pgtbl.tbl[page], frame_sender, PERMS_RX);
+                    earth->mmu_map(&pcb_child->pgtbl.tbl[page], frame_sender, PERMS_RX);
+                }
+            }
+            // parent gets PID of child
+            reply->pid = pcb_child->pid;
+            reply->type = CMD_OK;
+            grass->sys_send(sender, (void*)reply, sizeof(*reply));
+            
+            // child gets PID of zero
+            //reply->pid = 0;
+            //grass->sys_send(pcb_child->pid, (void*)reply, sizeof(*reply));
+            break;
         default:
             FATAL("sys_process: invalid request %d", req->type);
         }

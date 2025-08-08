@@ -5,7 +5,7 @@
 #include "list.h"
 #include "syscall.h"
 
-#define SIZE_KSTACK 0x10000 // default kernel stack size (16KB)
+#define SIZE_KSTACK 0x4000 // default kernel stack size (16KB)
 
 struct process {
     int pid;
@@ -23,7 +23,8 @@ struct process {
 ulonglong mtime_get();
 
 struct process *proc_alloc();
-struct process *proc_pcb_find(queue_t, int);
+struct process *proc_set_get(int pid);
+struct process *_proc_pcb_find(queue_t, int);
 void proc_simulate_interrupt(struct process *);
 void proc_set_ready(struct process *);
 void proc_free(int);

@@ -68,6 +68,8 @@ void grass_entry() {
     grass->proc_free      = proc_free;
     grass->proc_alloc     = proc_alloc;
     grass->proc_set_ready = proc_set_ready;
+    grass->proc_set_get   = proc_set_get;
+
     grass->sys_send       = sys_send;
     grass->sys_recv       = sys_recv;
     grass->sys_rpc        = sys_rpc;

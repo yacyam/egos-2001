@@ -14,6 +14,7 @@ static struct syscall* sc = (struct syscall*)SYSCALL_ARG;
 void sys_send(int receiver, char* msg, uint size) {
     sc->type     = SYS_SEND;
     sc->receiver = receiver;
+    // what happens if there is a page fault here ?
     memcpy(sc->content, msg, size);
     asm("ecall");
 }

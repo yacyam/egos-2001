@@ -10,6 +10,8 @@
 
 #define PERMS_RWX  0b111
 #define PERMS_RO   0b001
+#define PERMS_WO   0b010
+#define PERMS_XO   0b100
 #define PERMS_RX   0b101
 #define PERMS_RW   0b011
 #define PERMS_NONE 0b000

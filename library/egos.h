@@ -6,6 +6,7 @@ struct earth {
     void (*timer_reset)(uint core_id);
 
     int  (*mmu_alloc)();
+    uint (*mmu_refcnt)(uint frame);
     void (*mmu_map)(ppte *pte, uint frame_num, int perms);
     void (*mmu_unmap)(ppte *pte);
     void (*mmu_switch)(pseudopgtbl *pgtbl_old, pseudopgtbl *pgtbl_new);
@@ -24,6 +25,7 @@ struct grass {
     struct process *(*proc_alloc)();
     void (*proc_set_ready)(struct process *proc);
     void (*proc_free)(int pid);
+    struct process *(*proc_set_get)(int pid);
 
 
     void (*sys_send)(int receiver, char* msg, uint size);
