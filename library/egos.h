@@ -80,6 +80,7 @@ extern struct grass* grass;
 #define FRAME_NUM_TO_REAL_ADDR(frame) (((frame << PAGE_NBITS) + APPS_FRAMES_BASE))
 
 #define REAL_ADDR_TRUNC_OFFSET(addr) ((addr >> PAGE_NBITS))
+#define REAL_ADDR_GET_OFFSET(addr) ((addr & ((1 << PAGE_NBITS) - 1)))
 
 /* Below are some common macros/declarations for I/O, multicore and printing. */
 static inline int ceiling(int num, int den) { return (num + den - 1) / den; }

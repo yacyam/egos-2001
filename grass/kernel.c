@@ -100,14 +100,11 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
             // convert faulting page num to block offset to read ELF of process
 
             // offset of segment in file + offset of page inside segment
-            SUCCESS("mapped page=%x to frame=%x with perms=%x", reason->page_num, frame_num, perms);
             uint off_block = reason->seg_containing_fault->offset + \
                 ((reason->page_num - reason->seg_containing_fault->page_base) * BLOCKS_PER_PAGE);
-            CRITICAL("begin reading from offset=%x into file", off_block);
 
             // read every block that comprises the page
             for (int i = 0; i < BLOCKS_PER_PAGE; i++) {
-                INFO("Reading block=%x", off_block);
 
                 struct file_request req = (struct file_request) { 
                     .type = FILE_READ,
@@ -117,12 +114,10 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
                     .type = SYS_RPC, .receiver = GPID_FILE, .sender = GPID_FILE,
                 };
                 memcpy(proc_curr->syscall.content, &req, sizeof(req));
-                INFO("Copied request into syscall");
                 proc_try_syscall();
-                INFO("Back from syscall. need to convert to file_reply");
                 struct file_reply *reply = (struct file_reply *)proc_curr->syscall.content;
                 if (reply->status == FILE_ERROR)
-                    continue;
+                    break;
 
                 // synchronize both
                 memcpy((void*)(PAGE_NUM_TO_REAL_ADDR(page_num_fault) + (i * BLOCK_SIZE)), reply->block.bytes, BLOCK_SIZE);
@@ -130,7 +125,6 @@ static void _excp_map_and_load_frame(ppagefault_reason *reason) {
             }
             
         } else {
-            SUCCESS("MEMORY: mapped page=%x to frame=%x with perms=%x", reason->page_num, frame_num, perms);
             memset((void*)FRAME_NUM_TO_REAL_ADDR(frame_num), 0, PAGE_SIZE);
         }
     }
@@ -164,7 +158,7 @@ static void excp_entry(uint id) {
     if (id == EXCP_ID_FAULT_R || id == EXCP_ID_FAULT_W || id == EXCP_ID_FAULT_X) {
         uint mtval;
         asm("csrr %0, mtval":"=r"(mtval));
-        CRITICAL("excp_entry: process=%x experienced %d fault at pc=%x, mtval=%x", proc_curr->pid, id, proc_curr->mepc, mtval);
+
         // obtain the page number where the fault occurred 
         // (mepc for eXecute fault, mtval for rest)
         uint address_fault = proc_curr->mepc;

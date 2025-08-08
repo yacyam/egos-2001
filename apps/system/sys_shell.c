@@ -26,8 +26,9 @@ int parse_request(char* buf, struct proc_request* req) {
 
 int main() {
     CRITICAL("Welcome to the egos-2000 shell!");
+    strcpy(workdir, "/home/yunhao");
 
-    char buf[256] = "cd"; /* Enter the home directory first. */
+    char buf[256] = "echo hi"; /* Enter the home directory first. */
     while (1) {
         struct proc_request req;
         struct proc_reply reply;

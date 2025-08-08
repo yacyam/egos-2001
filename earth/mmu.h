@@ -43,7 +43,7 @@ typedef struct _segmenttbl {
 // pseudo page table entry corresponds a page to a frame 
 typedef struct _ppte {
     uint frame_num, perms;
-    bool present;
+    bool present, swapped, pinned;
 } ppte;
 
 // pseudo page table is a fixed collection of pptes.

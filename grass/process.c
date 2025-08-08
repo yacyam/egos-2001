@@ -99,7 +99,6 @@ struct process *proc_alloc() {
  * TODO: resolve any outstanding messages being sent to this process.
  */
 void proc_free(int pid) {
-    FATAL("proc_free: unmap entire address space");
     if (pid == GPID_ALL) {
         FATAL("proc_free: killing all user processes unimplemented");
     }
@@ -110,6 +109,14 @@ void proc_free(int pid) {
 
     if (queue_length(proc_being_killed->senderQ) > 0)
         FATAL("proc_free: non-empty senderQ of process being killed");
+
+    // unmap entire address space
+    for (int i = 0; i < NUM_PAGES; i++) {
+        if (proc_being_killed->pgtbl.tbl[i].swapped)
+            FATAL("proc_free: process %d has swapped frames. free them");
+        if (proc_being_killed->pgtbl.tbl[i].present)
+            earth->mmu_unmap(&proc_being_killed->pgtbl.tbl[i]);
+    }
 
     // remove from runQ (if there) and proc_set
     queue_delete(runQ, proc_being_killed);
